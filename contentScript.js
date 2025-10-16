@@ -15,6 +15,7 @@
       cursor: pointer;
       font-size: 12px;
       color: #007bff;
+      transition: all 0.2s ease-in-out;
     `;
     btn.addEventListener("click", () => {
       console.log("✅ Button clicked!");
@@ -27,20 +28,18 @@
     const table = document.querySelector(TABLE_SELECTOR);
     if (!table) return;
 
-    // Don’t inject multiple buttons
-    if (document.getElementById(BUTTON_ID)) return;
+    if (document.getElementById(BUTTON_ID)) return; // Avoid duplicates
 
-    // Add button after the table
     const btn = createButton();
     table.insertAdjacentElement("afterend", btn);
 
     console.log("✅ Button injected next to CareTracker table.");
   }
 
-  // Watch for table being added dynamically
+  // Watch for dynamically added table
   const observer = new MutationObserver(() => injectButton());
   observer.observe(document.body, { childList: true, subtree: true });
 
-  // Try initially
+  // Try immediately in case it's already loaded
   injectButton();
 })();

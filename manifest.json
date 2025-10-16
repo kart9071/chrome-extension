@@ -1,24 +1,12 @@
 {
   "manifest_version": 3,
-  "name": "CareTracker Chart Fetcher",
+  "name": "CareTracker Button Listener",
   "version": "1.0",
-  "description": "Fetches member conditions based on chart number from CareTracker.",
-  "permissions": [
-    "storage",
-    "scripting",
-    "activeTab"
-  ],
-  "host_permissions": [
-    "https://rapidrelease.caretracker.com/*"
-  ],
+  "description": "Shows a button when CareTracker patient table appears.",
+  "permissions": ["scripting", "activeTab", "storage"],
+  "host_permissions": ["https://rapidrelease.caretracker.com/*"],
   "background": {
     "service_worker": "service_worker.js"
-  },
-  "options_page": "options.html",
-  "icons": {
-    "16": "icons/icon16.png",
-    "48": "icons/icon48.png",
-    "128": "icons/icon128.png"
   },
   "content_scripts": [
     {
@@ -27,5 +15,6 @@
       "css": ["styles.css"],
       "run_at": "document_idle"
     }
-  ]
+  ],
+  "options_page": "options.html"
 }
