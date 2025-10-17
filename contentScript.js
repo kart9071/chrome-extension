@@ -1,17 +1,18 @@
 (() => {
   const TABLE_SELECTOR = "#ctl00_MainContent_ucPatientDetail_dlPatient";
-  const BUTTON_ID = "ct-test-btn";
+  const UL_SELECTOR = "#ulReadPatientDetail";
+  const BUTTON_ID = "ct-chart-details-btn";
 
   console.log("🔍 CareTracker Extension content script loaded.");
 
-  function createButton() {
-    console.log("🧩 Creating test button...");
+  function createButton(patientName, chartNumber) {
+    console.log("🧩 Creating Chart Details button...");
     const btn = document.createElement("button");
     btn.id = BUTTON_ID;
-    btn.innerText = "Test Button";
+    btn.innerText = patientName || "Unknown Patient";
+    btn.title = `Chart #: ${chartNumber || "N/A"}`;
     btn.style.cssText = `
-      margin-left: 10px;
-      padding: 6px 10px;
+      padding: 4px 8px;
       border: 1px solid #007bff;
       border-radius: 5px;
       background: #fff;
@@ -20,9 +21,17 @@
       color: #007bff;
       transition: all 0.2s ease-in-out;
     `;
+    btn.addEventListener("mouseover", () => {
+      btn.style.background = "#007bff";
+      btn.style.color = "#fff";
+    });
+    btn.addEventListener("mouseout", () => {
+      btn.style.background = "#fff";
+      btn.style.color = "#007bff";
+    });
     btn.addEventListener("click", () => {
-      console.log("✅ Button clicked!");
-      alert("Button clicked!");
+      console.log(`✅ Button clicked for ${patientName} (Chart #: ${chartNumber})`);
+      alert(`Chart #: ${chartNumber}\nPatient: ${patientName}`);
     });
     return btn;
   }
@@ -30,9 +39,10 @@
   function injectButton() {
     console.log("🔎 Checking for table:", TABLE_SELECTOR);
     const table = document.querySelector(TABLE_SELECTOR);
+    const ul = document.querySelector(UL_SELECTOR);
 
-    if (!table) {
-      console.log("⚠️ Table not found yet. Will retry when DOM changes.");
+    if (!table || !ul) {
+      console.log("⚠️ Table or UL not found yet. Will retry.");
       return;
     }
 
@@ -41,33 +51,37 @@
       return;
     }
 
-    console.log("✅ Table found! Injecting button...");
-    const btn = createButton();
-    table.insertAdjacentElement("afterend", btn);
-    console.log("🎉 Button injected successfully next to CareTracker table.");
+    const chartNumber = document.querySelector("#chartNumber")?.textContent?.trim() || "";
+    const patientName = document.querySelector("#patientName")?.textContent?.trim() || "";
+
+    console.log("✅ Data fetched:", { chartNumber, patientName });
+
+    const li = document.createElement("li");
+    li.innerHTML = `
+      <label style="margin-right:6px;">Chart Details:</label>
+    `;
+    const btn = createButton(patientName, chartNumber);
+    const span = document.createElement("span");
+    span.appendChild(btn);
+    li.appendChild(span);
+
+    ul.appendChild(li);
+    console.log("🎉 Button injected inside <ul> as new <li> successfully!");
   }
 
-  // Watch for dynamically added table
+  // MutationObserver to handle dynamic DOM
   console.log("👀 Starting MutationObserver...");
-  const observer = new MutationObserver((mutations) => {
-    for (const m of mutations) {
-      if (m.addedNodes && m.addedNodes.length > 0) {
-        console.log("🧠 DOM changed, rechecking for table...");
-        injectButton();
-      }
-    }
+  const observer = new MutationObserver(() => {
+    injectButton();
   });
-
-  // Start observing DOM
   observer.observe(document.body, { childList: true, subtree: true });
-  console.log("🚀 MutationObserver started and watching DOM.");
+  console.log("🚀 MutationObserver started.");
 
-  // Initial check in case table already exists
+  // Initial check
   injectButton();
 
-  // Fallback: periodic check (just in case)
+  // Fallback: periodic check
   setInterval(() => {
-    console.log("⏱️ Periodic check running...");
     injectButton();
   }, 5000);
 })();
