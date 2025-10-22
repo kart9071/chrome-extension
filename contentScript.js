@@ -4,13 +4,17 @@
   const BUTTON_ID = "ct-chart-details-btn";
   const FLOATING_DIV_ID = "chartDetailsFloatingDiv";
   const FLOATING_CONTAINER_ID = "chartDetailsContainer";
+
   let observer;
   let checkInterval;
+  let isFloatingDivOpen = false;
 
   console.log("🔍 CareTracker Extension content script loaded.");
 
+  // =========================
+  // 🧩 Create the button
+  // =========================
   function createButton(patientName, chartNumber) {
-    console.log("🧩 Creating Chart Details button...");
     const btn = document.createElement("button");
     btn.id = BUTTON_ID;
     btn.innerText = patientName || "Unknown Patient";
@@ -36,30 +40,24 @@
     btn.addEventListener("click", () => {
       console.log(`✅ Button clicked for ${patientName} (Chart #: ${chartNumber})`);
       showFloatingDiv(patientName, chartNumber);
-      stopMonitoring(); // Stop checking for the button once clicked
     });
     return btn;
   }
 
+  // =========================
+  // 🧩 Inject button
+  // =========================
   function injectButton() {
-    console.log("🔎 Checking for table:", TABLE_SELECTOR);
+    if (isFloatingDivOpen) return; // ⛔ Do nothing while floating div is open
+
     const table = document.querySelector(TABLE_SELECTOR);
     const ul = document.querySelector(UL_SELECTOR);
 
-    if (!table || !ul) {
-      console.log("⚠️ Table or UL not found yet. Will retry.");
-      return;
-    }
-
-    if (document.getElementById(BUTTON_ID)) {
-      console.log("⚠️ Button already injected, skipping.");
-      return;
-    }
+    if (!table || !ul) return;
+    if (document.getElementById(BUTTON_ID)) return;
 
     const chartNumber = document.querySelector("#chartNumber")?.textContent?.trim() || "";
     const patientName = document.querySelector("#patientName")?.textContent?.trim() || "";
-
-    console.log("✅ Data fetched:", { chartNumber, patientName });
 
     const li = document.createElement("li");
     li.innerHTML = `<label style="margin-right:6px;">Chart Details:</label>`;
@@ -72,8 +70,16 @@
     console.log("🎉 Button injected inside <ul> as new <li> successfully!");
   }
 
+  // =========================
+  // 🧩 Floating div display
+  // =========================
   function showFloatingDiv(patientName, chartNumber) {
-    // Create or get persistent container outside the dynamic body
+    if (isFloatingDivOpen) return;
+    isFloatingDivOpen = true;
+
+    stopMonitoring(); // Pause monitoring when floating div opens
+
+    // Persistent container outside dynamic body
     let container = document.getElementById(FLOATING_CONTAINER_ID);
     if (!container) {
       container = document.createElement("div");
@@ -86,12 +92,8 @@
       console.log("📦 Created persistent floating div container.");
     }
 
-    // If div already exists, skip recreating
     const existingDiv = document.getElementById(FLOATING_DIV_ID);
-    if (existingDiv) {
-      console.log("⚠️ Floating div already exists.");
-      return;
-    }
+    if (existingDiv) return;
 
     // Create floating div
     const floatingDiv = document.createElement("div");
@@ -148,18 +150,21 @@
     closeButton.addEventListener("click", () => {
       console.log("❌ Closing floating div.");
       floatingDiv.remove();
-      startMonitoring(); // Restart monitoring after closing
+      isFloatingDivOpen = false;
+      startMonitoring(); // Resume monitoring after closing
     });
 
     floatingDiv.appendChild(header);
     floatingDiv.appendChild(details);
     floatingDiv.appendChild(closeButton);
-
-    // Append floating div into persistent container
     container.appendChild(floatingDiv);
+
     console.log("🎉 Floating div created and displayed in persistent container!");
   }
 
+  // =========================
+  // 🧩 Monitoring functions
+  // =========================
   function stopMonitoring() {
     if (observer) {
       observer.disconnect();
@@ -172,18 +177,21 @@
   }
 
   function startMonitoring() {
+    stopMonitoring(); // Prevent duplicates
+
     console.log("🧭 Starting MutationObserver and periodic checks...");
     observer = new MutationObserver(() => {
       injectButton();
     });
     observer.observe(document.body, { childList: true, subtree: true });
-    console.log("🚀 MutationObserver started.");
 
     checkInterval = setInterval(() => {
       injectButton();
     }, 5000);
   }
 
-  // Initial setup
+  // =========================
+  // 🚀 Initialize
+  // =========================
   startMonitoring();
 })();
