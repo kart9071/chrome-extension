@@ -6,7 +6,7 @@
   let observer;
   let checkInterval;
 
-  console.log("🔍 CareTracker Extension content script loaded.");
+  console.log("🔍 Local CareTracker extension loaded.");
 
   // =========================
   // Create the button
@@ -36,62 +36,74 @@
     });
 
     btn.addEventListener("click", async () => {
-      console.log(`✅ Button clicked for ${patientName} (Chart #: ${chartNumber})`);
+      const member_id = chartNumber || prompt("Enter member_id:", "");
+      const member_name = patientName || prompt("Enter patient_name:", "");
 
-      if (!chartNumber || !patientName) {
-        alert("⚠️ Missing chart number or patient name!");
+      if (!member_id || !member_name) {
+        alert("⚠️ Both member_id and patient_name are required!");
         return;
       }
 
       // Open new tab immediately
       const newTab = window.open("", "_blank");
       if (!newTab) {
-        alert("⚠️ Popup blocked! Please allow popups for this site.");
+        alert("⚠️ Popup blocked! Please allow popups.");
         return;
       }
 
-      newTab.document.write(`
-        <html>
-          <body style="font-family: Arial; padding: 40px; text-align:center;">
-            <h2>Fetching chart details for ${patientName}...</h2>
-          </body>
-        </html>
-      `);
-      newTab.document.close();
-
-      // Fetch API with timeout (15s)
-      const TIMEOUT_MS = 15000;
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+      // Create skeleton for new tab
+      const doc = newTab.document;
+      doc.head.innerHTML = `
+        <meta charset="UTF-8">
+        <title>Chart Details</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin:0; padding:20px; background:#f9f9f9; }
+          .container { max-width:900px; margin:0 auto; background:#fff; padding:20px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.1);}
+          h2 { color:#007bff; text-align:center; }
+          pre { background:#f4f4f4; padding:15px; border-radius:5px; overflow:auto; }
+          button { margin-top:20px; padding:8px 16px; background:#007bff; color:#fff; border:none; border-radius:5px; cursor:pointer; display:block; margin-left:auto; margin-right:auto; }
+          button:hover { background:#0056b3; }
+        </style>
+      `;
+      doc.body.innerHTML = `<h2 style="text-align:center;">Fetching chart details for ${member_name}...</h2>`;
 
       try {
         const response = await fetch(
-          "https://h4xqr89uik.execute-api.us-east-1.amazonaws.com/prod/",
+          "https://h4xqr89uik.execute-api.us-east-1.amazonaws.com/prod/", // replace with prod if needed
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ member_id: chartNumber, member_name: patientName }),
-            signal: controller.signal
+            body: JSON.stringify({ member_id, member_name })
           }
         );
 
-        clearTimeout(timeoutId);
-
-        if (!response.ok) throw new Error(`Server error: ${response.status}`);
+        if (!response.ok) throw new Error(`Server returned ${response.status}`);
         const data = await response.json();
-        console.log("API Response:", data);
+        console.log("✅ API Response:", data);
 
-        updateNewTab(newTab, data);
+        // Update new tab DOM directly
+        doc.body.innerHTML = ""; // clear previous content
+        const container = doc.createElement("div");
+        container.className = "container";
+
+        const h2 = doc.createElement("h2");
+        h2.textContent = `Chart Details - ${member_name}`;
+        container.appendChild(h2);
+
+        const pre = doc.createElement("pre");
+        pre.textContent = JSON.stringify(data, null, 2);
+        container.appendChild(pre);
+
+        const closeBtn = doc.createElement("button");
+        closeBtn.textContent = "Close";
+        closeBtn.addEventListener("click", () => newTab.close());
+        container.appendChild(closeBtn);
+
+        doc.body.appendChild(container);
 
       } catch (error) {
-        clearTimeout(timeoutId);
         console.error("❌ Error fetching chart details:", error);
-
-        if (error.name === "AbortError") {
-          newTab.document.body.innerHTML = `<p style="color:red;">Request timed out after ${TIMEOUT_MS / 1000} seconds.</p>`;
-        } else {
-          newTab.document.body.innerHTML = `<p style="color:red;">Failed to fetch chart details: ${error.message}</p>`;
-        }
+        doc.body.innerHTML = `<p style="color:red;">Failed to fetch chart details: ${error.message}</p>`;
       }
     });
 
@@ -107,8 +119,10 @@
     if (!table || !ul) return;
     if (document.getElementById(BUTTON_ID)) return;
 
-    const chartNumber = document.querySelector("#chartNumber")?.textContent?.trim() || "";
-    const patientName = document.querySelector("#patientName")?.textContent?.trim() || "";
+    const chartNumber =
+      document.querySelector("#chartNumber")?.textContent?.trim() || "";
+    const patientName =
+      document.querySelector("#patientName")?.textContent?.trim() || "";
 
     const li = document.createElement("li");
     li.innerHTML = `<label style="margin-right:6px;">Chart Details:</label>`;
@@ -118,79 +132,11 @@
     li.appendChild(span);
 
     ul.appendChild(li);
-    console.log("✅ Button injected inside <ul> successfully!");
+    console.log("✅ Button injected successfully!");
   }
 
   // =========================
-  // Update the opened tab
-  // =========================
-  function updateNewTab(newTab, data) {
-    const { member_id, member_name, appointment, chart_response } = data;
-    const chartData = chart_response?.data || {};
-    const medicalConditions = chartData?.medical_conditions || [];
-
-    const html = `
-      <!DOCTYPE html>
-      <html lang="en">
-        <head>
-          <meta charset="UTF-8">
-          <title>Chart Details - ${member_name}</title>
-          <style>
-            body { font-family: Arial, sans-serif; margin:0; padding:20px; background:#f9f9f9; }
-            .container { max-width:900px; margin:0 auto; background:#fff; padding:20px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.1);}
-            h2 { color:#007bff; text-align:center; }
-            table { width:100%; border-collapse:collapse; margin-top:15px;}
-            th, td { border:1px solid #ddd; padding:8px; text-align:left; }
-            th { background:#007bff; color:#fff; }
-            tr:nth-child(even) { background:#f2f2f2; }
-            button { margin-top:20px; padding:8px 16px; background:#007bff; color:#fff; border:none; border-radius:5px; cursor:pointer; }
-            button:hover { background:#0056b3; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <h2>Chart Details - ${member_name}</h2>
-            <p><strong>Chart #: </strong>${member_id || "N/A"}</p>
-            <p><strong>Appointment DOS: </strong>${appointment?.dos || "N/A"}</p>
-
-            <h3>Medical Conditions</h3>
-            <table>
-              <thead>
-                <tr>
-                  <th>Condition Name</th>
-                  <th>Diagnosis</th>
-                  <th>ICD Code</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${medicalConditions.map(mc => `
-                  <tr>
-                    <td>${mc.condition_name || ""}</td>
-                    <td>${mc.diagnosis || ""}</td>
-                    <td>${mc.icd_code || ""}</td>
-                    <td>${mc.code_status || ""}</td>
-                  </tr>`).join("")}
-              </tbody>
-            </table>
-
-            <button id="closeBtn">Close</button>
-          </div>
-          <script>
-            document.getElementById("closeBtn").addEventListener("click", () => window.close());
-          </script>
-        </body>
-      </html>
-    `;
-
-    newTab.document.open();
-    newTab.document.write(html);
-    newTab.document.close();
-    console.log("✅ Updated new tab with chart details.");
-  }
-
-  // =========================
-  // Start monitoring
+  // Start monitoring DOM
   // =========================
   function stopMonitoring() {
     if (observer) observer.disconnect();
