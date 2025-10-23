@@ -5,12 +5,11 @@
 
   let observer;
   let checkInterval;
-  let isFloatingDivOpen = false;
 
   console.log("🔍 CareTracker Extension content script loaded.");
 
   // =========================
-  // 🧩 Create the button
+  // Create the button
   // =========================
   function createButton(patientName, chartNumber) {
     const btn = document.createElement("button");
@@ -35,30 +34,74 @@
       btn.style.background = "#fff";
       btn.style.color = "#007bff";
     });
-    btn.addEventListener("click", () => {
+
+    btn.addEventListener("click", async () => {
       console.log(`✅ Button clicked for ${patientName} (Chart #: ${chartNumber})`);
-      chrome.runtime.sendMessage(
-        { type: "FETCH_CHART_DETAILS", chartNumber, patientName },
-        (response) => {
-          if (response?.success) {
-            openInNewTab(response.data);
-          } else {
-            console.error("❌ Failed to fetch chart details:", response?.error);
-            alert("Failed to fetch chart details.");
+
+      if (!chartNumber || !patientName) {
+        alert("⚠️ Missing chart number or patient name!");
+        return;
+      }
+
+      // Open new tab immediately
+      const newTab = window.open("", "_blank");
+      if (!newTab) {
+        alert("⚠️ Popup blocked! Please allow popups for this site.");
+        return;
+      }
+
+      newTab.document.write(`
+        <html>
+          <body style="font-family: Arial; padding: 40px; text-align:center;">
+            <h2>Fetching chart details for ${patientName}...</h2>
+          </body>
+        </html>
+      `);
+      newTab.document.close();
+
+      // Fetch API with timeout (15s)
+      const TIMEOUT_MS = 15000;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+      try {
+        const response = await fetch(
+          "https://h4xqr89uik.execute-api.us-east-1.amazonaws.com/prod/",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ member_id: chartNumber, member_name: patientName }),
+            signal: controller.signal
           }
+        );
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) throw new Error(`Server error: ${response.status}`);
+        const data = await response.json();
+        console.log("API Response:", data);
+
+        updateNewTab(newTab, data);
+
+      } catch (error) {
+        clearTimeout(timeoutId);
+        console.error("❌ Error fetching chart details:", error);
+
+        if (error.name === "AbortError") {
+          newTab.document.body.innerHTML = `<p style="color:red;">Request timed out after ${TIMEOUT_MS / 1000} seconds.</p>`;
+        } else {
+          newTab.document.body.innerHTML = `<p style="color:red;">Failed to fetch chart details: ${error.message}</p>`;
         }
-      );
+      }
     });
 
     return btn;
   }
 
   // =========================
-  // 🧩 Inject button
+  // Inject button inside UL
   // =========================
   function injectButton() {
-    if (isFloatingDivOpen) return;
-
     const table = document.querySelector(TABLE_SELECTOR);
     const ul = document.querySelector(UL_SELECTOR);
     if (!table || !ul) return;
@@ -75,38 +118,22 @@
     li.appendChild(span);
 
     ul.appendChild(li);
-    console.log("🎉 Button injected inside <ul> as new <li> successfully!");
+    console.log("✅ Button injected inside <ul> successfully!");
   }
 
   // =========================
-  // 🧩 Fetch chart details via service worker
+  // Update the opened tab
   // =========================
-  function fetchChartDetails(chartNumber) {
-    chrome.runtime.sendMessage(
-      { type: "FETCH_CHART_DETAILS", chartNumber },
-      (response) => {
-        if (response?.success) {
-          openInNewTab(response.data);
-        } else {
-          console.error("❌ Failed to fetch chart details:", response?.error);
-          alert("Failed to fetch chart details.");
-        }
-      }
-    );
-  }
-
-  // =========================
-  // 🧩 Open new tab and display chart data
-  // =========================
-  function openInNewTab(data) {
+  function updateNewTab(newTab, data) {
     const { member_id, member_name, appointment, chart_response } = data;
     const chartData = chart_response?.data || {};
     const medicalConditions = chartData?.medical_conditions || [];
 
-    const newTab = window.open("", "_blank");
-    const content = `
-      <html>
+    const html = `
+      <!DOCTYPE html>
+      <html lang="en">
         <head>
+          <meta charset="UTF-8">
           <title>Chart Details - ${member_name}</title>
           <style>
             body { font-family: Arial, sans-serif; margin:0; padding:20px; background:#f9f9f9; }
@@ -125,6 +152,7 @@
             <h2>Chart Details - ${member_name}</h2>
             <p><strong>Chart #: </strong>${member_id || "N/A"}</p>
             <p><strong>Appointment DOS: </strong>${appointment?.dos || "N/A"}</p>
+
             <h3>Medical Conditions</h3>
             <table>
               <thead>
@@ -142,22 +170,27 @@
                     <td>${mc.diagnosis || ""}</td>
                     <td>${mc.icd_code || ""}</td>
                     <td>${mc.code_status || ""}</td>
-                  </tr>
-                `).join("")}
+                  </tr>`).join("")}
               </tbody>
             </table>
-            <button onclick="window.close()">Close</button>
+
+            <button id="closeBtn">Close</button>
           </div>
+          <script>
+            document.getElementById("closeBtn").addEventListener("click", () => window.close());
+          </script>
         </body>
       </html>
     `;
-    newTab.document.write(content);
+
+    newTab.document.open();
+    newTab.document.write(html);
     newTab.document.close();
-    console.log("🎉 Opened new tab with chart details.");
+    console.log("✅ Updated new tab with chart details.");
   }
 
   // =========================
-  // 🧩 Monitoring functions
+  // Start monitoring
   // =========================
   function stopMonitoring() {
     if (observer) observer.disconnect();
