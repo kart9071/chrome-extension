@@ -144,7 +144,7 @@
     stopMonitoring();
     observer = new MutationObserver(() => injectButton());
     observer.observe(document.body, { childList: true, subtree: true });
-    checkInterval = setInterval(() => injectButton(), 5000);
+    checkInterval = setInterval(() => injectButton(), 50000);
   }
 
   startMonitoring();
