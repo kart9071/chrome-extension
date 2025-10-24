@@ -2,33 +2,64 @@
   const TABLE_SELECTOR = "#ctl00_MainContent_ucPatientDetail_dlPatient";
   const UL_SELECTOR = "#ulReadPatientDetail";
   const BUTTON_ID = "ct-chart-details-btn";
+  const SHADOW_HOST_ID = "ct-shadow-host";
   const RESULT_DIV_ID = "chartDetailsResult";
 
   let observer;
+  let shadowRoot;
 
   console.log("🔍 CareTracker extension content script loaded.");
 
-  // 🧩 Create floating container for chart details
-  function createResultDiv() {
-    if (document.getElementById(RESULT_DIV_ID)) return;
+  // 🧩 Create floating container in Shadow DOM
+  function createShadowContainer() {
+    if (document.getElementById(SHADOW_HOST_ID)) return;
+
+    const host = document.createElement("div");
+    host.id = SHADOW_HOST_ID;
+    host.style.cssText = `
+      all: initial;
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 2147483647; /* max z-index */
+    `;
+    document.documentElement.appendChild(host);
+
+    shadowRoot = host.attachShadow({ mode: "open" });
+
+    const style = document.createElement("style");
+    style.textContent = `
+      #${RESULT_DIV_ID} {
+        position: fixed;
+        top: 60px;
+        right: 20px;
+        width: 400px;
+        height: 500px;
+        background: #fff;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        padding: 10px;
+        overflow-y: auto;
+        z-index: 9999;
+        display: none;
+        font-family: Arial, sans-serif;
+      }
+      button {
+        font-family: Arial, sans-serif;
+      }
+    `;
+    shadowRoot.appendChild(style);
+
     const div = document.createElement("div");
     div.id = RESULT_DIV_ID;
-    div.style.cssText = `
-      position: fixed;
-      top: 60px;
-      right: 20px;
-      width: 400px;
-      height: 500px;
-      background: #fff;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-      padding: 10px;
-      overflow-y: auto;
-      z-index: 9999;
-      display: none;
-    `;
-    document.body.appendChild(div);
+    shadowRoot.appendChild(div);
+  }
+
+  // 🧩 Get reference to result div (inside Shadow DOM)
+  function getResultDiv() {
+    if (!shadowRoot) createShadowContainer();
+    return shadowRoot.getElementById(RESULT_DIV_ID);
   }
 
   // 🧩 Create button
@@ -65,7 +96,7 @@
         return;
       }
 
-      const resultDiv = document.getElementById(RESULT_DIV_ID);
+      const resultDiv = getResultDiv();
       resultDiv.style.display = "block";
       resultDiv.innerHTML = `<h3 style="color:#007bff;">Fetching chart details for ${member_name}...</h3>`;
 
@@ -96,11 +127,9 @@ ${JSON.stringify(response.data, null, 2)}
               </pre>
               <button id="closeChartDiv" style="margin-top:10px;padding:6px 10px;background:#007bff;color:#fff;border:none;border-radius:4px;cursor:pointer;">Close</button>
             `;
-            document
-              .getElementById("closeChartDiv")
-              .addEventListener("click", () => {
-                resultDiv.style.display = "none";
-              });
+            resultDiv.querySelector("#closeChartDiv").addEventListener("click", () => {
+              resultDiv.style.display = "none";
+            });
           }
         }
       );
@@ -129,7 +158,7 @@ ${JSON.stringify(response.data, null, 2)}
     ul.appendChild(li);
     console.log("✅ Button injected successfully!");
 
-    createResultDiv();
+    createShadowContainer();
   }
 
   // ✅ Observe DOM for first-time injection only
