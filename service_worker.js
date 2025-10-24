@@ -1,34 +1,27 @@
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.type === "FETCH_CHART_DETAILS") {
-    const { chartNumber, patientName } = message;
+console.log("🧠 CareTracker Service Worker loaded.");
 
-    // Make POST request
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === "fetchChartDetails") {
+    const { member_id, member_name } = message.payload;
+
+    console.log("📡 Fetching chart details from API:", member_id, member_name);
+
     fetch("https://h4xqr89uik.execute-api.us-east-1.amazonaws.com/dev/", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        // Add authorization headers if needed
-        // "Authorization": "Bearer YOUR_TOKEN"
-      },
-      body: JSON.stringify({
-        member_id: chartNumber,
-        member_name: patientName
-      })
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ member_id, member_name })
     })
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch chart details");
-        return res.json();
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`Server returned ${res.status}`);
+        const data = await res.json();
+        sendResponse({ data });
       })
-      .then((data) => {
-        console.log("📦 API Response from Service Worker:", data);
-        sendResponse({ success: true, data });
-      })
-      .catch((error) => {
-        console.error("❌ Service Worker fetch error:", error);
-        sendResponse({ success: false, error: error.message });
+      .catch((err) => {
+        console.error("❌ Fetch failed:", err);
+        sendResponse({ error: err.message });
       });
 
-    // Return true to keep the message channel open for async response
+    // Required for async response
     return true;
   }
 });
