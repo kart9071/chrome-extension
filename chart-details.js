@@ -73,6 +73,8 @@ chrome.runtime.sendMessage(
           <p><strong>ICD Code:</strong> ${cond.icd_code}</p>
           <p><strong>Clinical Indicators:</strong> ${cond.clinical_indicators}</p>
           <p><strong>Documentation:</strong> ${cond.documented_in}</p>
+          <p><strong>Code Status:</strong> ${cond.code_status}</p>
+           <p><strong>Code Explanation:</strong> ${cond.code_explanation}</p>
         `;
         section.appendChild(div);
       });
