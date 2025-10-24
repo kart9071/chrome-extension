@@ -5,7 +5,6 @@
   const RESULT_DIV_ID = "chartDetailsResult";
 
   let observer;
-  let checkInterval;
 
   console.log("🔍 CareTracker extension content script loaded.");
 
@@ -74,7 +73,7 @@
       chrome.runtime.sendMessage(
         {
           action: "fetchChartDetails",
-          payload: { member_id, member_name }
+          payload: { member_id, member_name },
         },
         (response) => {
           if (chrome.runtime.lastError) {
@@ -93,13 +92,15 @@
             resultDiv.innerHTML = `
               <h3 style="color:#007bff;">Chart Details - ${member_name}</h3>
               <pre style="background:#f4f4f4;padding:10px;border-radius:5px;overflow:auto;">
-              ${JSON.stringify(response.data, null, 2)}
+${JSON.stringify(response.data, null, 2)}
               </pre>
               <button id="closeChartDiv" style="margin-top:10px;padding:6px 10px;background:#007bff;color:#fff;border:none;border-radius:4px;cursor:pointer;">Close</button>
             `;
-            document.getElementById("closeChartDiv").addEventListener("click", () => {
-              resultDiv.style.display = "none";
-            });
+            document
+              .getElementById("closeChartDiv")
+              .addEventListener("click", () => {
+                resultDiv.style.display = "none";
+              });
           }
         }
       );
@@ -128,23 +129,18 @@
     ul.appendChild(li);
     console.log("✅ Button injected successfully!");
 
-    // Create the floating div once
     createResultDiv();
-
-    // Stop monitoring after successful injection
-    stopMonitoring();
   }
 
-  function stopMonitoring() {
-    if (observer) observer.disconnect();
-    if (checkInterval) clearInterval(checkInterval);
-  }
-
+  // ✅ Observe DOM for first-time injection only
   function startMonitoring() {
-    stopMonitoring();
-    observer = new MutationObserver(() => injectButton());
+    injectButton(); // Try immediately
+
+    observer = new MutationObserver(() => {
+      if (!document.getElementById(BUTTON_ID)) injectButton();
+    });
+
     observer.observe(document.body, { childList: true, subtree: true });
-    checkInterval = setInterval(() => injectButton(), 50000);
   }
 
   startMonitoring();
