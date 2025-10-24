@@ -1,147 +1,163 @@
 (() => {
   const TABLE_SELECTOR = "#ctl00_MainContent_ucPatientDetail_dlPatient";
   const UL_SELECTOR = "#ulReadPatientDetail";
-  const BUTTON_ID = "ct-chart-details-btn";
-  const RESULT_DIV_ID = "chartDetailsResult";
+  const FLOATING_DIV_ID = "ct-chart-floating";
 
   let observer;
+  let hasLoaded = false;
 
-  console.log("🔍 CareTracker extension content script loaded.");
+  console.log("🔍 CareTracker extension: auto chart details loader running.");
 
-  // 🧩 Create floating container for chart details
-  function createResultDiv() {
-    if (document.getElementById(RESULT_DIV_ID)) return;
+  // 🧩 Create floating div
+  function createFloatingDiv() {
+    const existing = document.getElementById(FLOATING_DIV_ID);
+    if (existing) return existing;
+
     const div = document.createElement("div");
-    div.id = RESULT_DIV_ID;
+    div.id = FLOATING_DIV_ID;
     div.style.cssText = `
       position: fixed;
-      top: 60px;
+      top: 80px;
       right: 20px;
-      width: 400px;
-      height: 500px;
+      width: 420px;
+      max-height: 80vh;
+      overflow-y: auto;
       background: #fff;
       border: 1px solid #ccc;
-      border-radius: 8px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-      padding: 10px;
-      overflow-y: auto;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      border-radius: 10px;
       z-index: 9999;
-      display: none;
+      padding: 12px;
+      font-family: Arial, sans-serif;
+      font-size: 13px;
+      color: #333;
     `;
+
+    div.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h3 id="chartTitle" style="margin:0; font-size:15px; color:#007bff;">Chart Details</h3>
+        <button id="closeChartDiv" style="background:#f33; color:#fff; border:none; border-radius:5px; cursor:pointer; padding:2px 6px;">✕</button>
+      </div>
+      <div id="chartContent" style="margin-top:10px;">Loading...</div>
+    `;
+
     document.body.appendChild(div);
+
+    document.getElementById("closeChartDiv").addEventListener("click", () => {
+      div.remove();
+      hasLoaded = false;
+    });
+
+    return div;
   }
 
-  // 🧩 Create button
-  function createButton(patientName, chartNumber) {
-    const btn = document.createElement("button");
-    btn.id = BUTTON_ID;
-    btn.innerText = "Open Chart Details";
-    btn.title = `Chart #: ${chartNumber || "N/A"}`;
-    btn.style.cssText = `
-      padding: 4px 8px;
-      border: 1px solid #007bff;
-      border-radius: 5px;
-      background: #fff;
-      cursor: pointer;
-      font-size: 12px;
-      color: #007bff;
-      transition: all 0.2s ease-in-out;
-    `;
-    btn.addEventListener("mouseover", () => {
-      btn.style.background = "#007bff";
-      btn.style.color = "#fff";
-    });
-    btn.addEventListener("mouseout", () => {
-      btn.style.background = "#fff";
-      btn.style.color = "#007bff";
-    });
+  // 🧩 Fetch chart details from background
+  function fetchChartDetails(member_id, member_name) {
+    const contentDiv = document.getElementById("chartContent");
+    document.getElementById("chartTitle").textContent = `Chart Details - ${member_name}`;
+    contentDiv.innerHTML = "<p>Loading...</p>";
 
-    btn.addEventListener("click", async () => {
-      const member_id = chartNumber || prompt("Enter member_id:", "");
-      const member_name = patientName || prompt("Enter patient_name:", "");
-
-      if (!member_id || !member_name) {
-        alert("⚠️ Both member_id and patient_name are required!");
-        return;
-      }
-
-      const resultDiv = document.getElementById(RESULT_DIV_ID);
-      resultDiv.style.display = "block";
-      resultDiv.innerHTML = `<h3 style="color:#007bff;">Fetching chart details for ${member_name}...</h3>`;
-
-      // 📨 Send data to service worker
-      chrome.runtime.sendMessage(
-        {
-          action: "fetchChartDetails",
-          payload: { member_id, member_name },
-        },
-        (response) => {
-          if (chrome.runtime.lastError) {
-            resultDiv.innerHTML = `<p style="color:red;">Error: ${chrome.runtime.lastError.message}</p>`;
-            return;
-          }
-
-          if (!response) {
-            resultDiv.innerHTML = `<p style="color:red;">No response from background script.</p>`;
-            return;
-          }
-
-          if (response.error) {
-            resultDiv.innerHTML = `<p style="color:red;">❌ ${response.error}</p>`;
-          } else {
-            resultDiv.innerHTML = `
-              <h3 style="color:#007bff;">Chart Details - ${member_name}</h3>
-              <pre style="background:#f4f4f4;padding:10px;border-radius:5px;overflow:auto;">
-${JSON.stringify(response.data, null, 2)}
-              </pre>
-              <button id="closeChartDiv" style="margin-top:10px;padding:6px 10px;background:#007bff;color:#fff;border:none;border-radius:4px;cursor:pointer;">Close</button>
-            `;
-            document
-              .getElementById("closeChartDiv")
-              .addEventListener("click", () => {
-                resultDiv.style.display = "none";
-              });
-          }
+    chrome.runtime.sendMessage(
+      { action: "fetchChartDetails", payload: { member_id, member_name } },
+      (response) => {
+        if (chrome.runtime.lastError) {
+          contentDiv.innerHTML = `<p style="color:red;">Error: ${chrome.runtime.lastError.message}</p>`;
+          return;
         }
-      );
-    });
 
-    return btn;
+        if (!response) {
+          contentDiv.innerHTML = `<p style="color:red;">No response from background script.</p>`;
+          return;
+        }
+
+        if (response.error) {
+          contentDiv.innerHTML = `<p style="color:red;">❌ ${response.error}</p>`;
+          return;
+        }
+
+        const data = response.data;
+        if (!data) {
+          contentDiv.innerHTML = `<p>No chart details available.</p>`;
+          return;
+        }
+
+        // Clear loading
+        contentDiv.innerHTML = "";
+
+        // 🩺 Patient Info
+        const patient = data.chart_response?.data?.member;
+        if (patient) {
+          const section = document.createElement("section");
+          section.innerHTML = `
+            <h4>Patient Info</h4>
+            <p><strong>Name:</strong> ${patient.fname} ${patient.lname}</p>
+            <p><strong>DOB:</strong> ${patient.DOB}</p>
+            <p><strong>EMR Chart #:</strong> ${patient.emr_chart_number}</p>
+            <p><strong>PCP:</strong> ${patient.pcp?.name || "N/A"}</p>
+          `;
+          contentDiv.appendChild(section);
+        }
+
+        // 🗓️ Appointment Info
+        const appt = data.chart_response?.data?.appointment;
+        if (appt) {
+          const section = document.createElement("section");
+          section.innerHTML = `
+            <h4>Appointment Info</h4>
+            <p><strong>Date of Service:</strong> ${new Date(appt.DOS).toLocaleDateString()}</p>
+            <p><strong>Facility:</strong> ${appt.facility}</p>
+          `;
+          contentDiv.appendChild(section);
+        }
+
+        // 📋 Medical Conditions
+        const conditions = data.chart_response?.data?.medical_conditions || [];
+        if (conditions.length > 0) {
+          const section = document.createElement("section");
+          section.innerHTML = `<h4>Medical Conditions</h4>`;
+          conditions.forEach((cond) => {
+            const div = document.createElement("div");
+            div.className = "medical-condition";
+            div.style.marginBottom = "10px";
+            div.innerHTML = `
+              <p><strong>Condition:</strong> ${cond.condition_name}</p>
+              <p><strong>ICD Code:</strong> ${cond.icd_code}</p>
+              <p><strong>Clinical Indicators:</strong> ${cond.clinical_indicators}</p>
+              <p><strong>Documentation:</strong> ${cond.documented_in}</p>
+              <p><strong>Code Status:</strong> ${cond.code_status}</p>
+              <p><strong>Code Explanation:</strong> ${cond.code_explanation}</p>
+            `;
+            section.appendChild(div);
+          });
+          contentDiv.appendChild(section);
+        }
+      }
+    );
   }
 
-  // 🧩 Inject button inside UL
-  function injectButton() {
+  // 🧩 Detect patient info and trigger automatically
+  function tryAutoLoad() {
+    if (hasLoaded) return;
+
     const table = document.querySelector(TABLE_SELECTOR);
     const ul = document.querySelector(UL_SELECTOR);
     if (!table || !ul) return;
-    if (document.getElementById(BUTTON_ID)) return;
 
-    const chartNumber =
-      document.querySelector("#chartNumber")?.textContent?.trim() || "";
-    const patientName =
-      document.querySelector("#patientName")?.textContent?.trim() || "";
+    const chartNumber = document.querySelector("#chartNumber")?.textContent?.trim();
+    const patientName = document.querySelector("#patientName")?.textContent?.trim();
 
-    const li = document.createElement("li");
-    li.innerHTML = `<label style="margin-right:6px;">Chart Details:</label>`;
-    const btn = createButton(patientName, chartNumber);
-    li.appendChild(btn);
-
-    ul.appendChild(li);
-    console.log("✅ Button injected successfully!");
-
-    createResultDiv();
+    if (chartNumber && patientName) {
+      console.log(`🧩 Found patient: ${patientName} (${chartNumber})`);
+      const div = createFloatingDiv();
+      fetchChartDetails(chartNumber, patientName);
+      hasLoaded = true;
+    }
   }
 
-  // ✅ Observe DOM for first-time injection only
-  function startMonitoring() {
-    injectButton(); // Try immediately
+  // 🧠 Observe DOM changes
+  observer = new MutationObserver(() => tryAutoLoad());
+  observer.observe(document.body, { childList: true, subtree: true });
 
-    observer = new MutationObserver(() => {
-      if (!document.getElementById(BUTTON_ID)) injectButton();
-    });
-
-    observer.observe(document.body, { childList: true, subtree: true });
-  }
-
-  startMonitoring();
+  // Try once immediately
+  tryAutoLoad();
 })();
