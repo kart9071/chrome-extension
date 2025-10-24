@@ -27,7 +27,11 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["chart-details.html"],
+      "resources": [
+        "chart-details.html",
+        "chart-details.js",
+        "chart-details.css"
+      ],
       "matches": ["<all_urls>"]
     }
   ],
