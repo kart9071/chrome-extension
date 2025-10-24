@@ -10,7 +10,7 @@
 
   console.log("🔍 CareTracker extension content script loaded.");
 
-  // 🧩 Create floating container in Shadow DOM
+  // 🧩 Create floating container completely OUTSIDE the page DOM
   function createShadowContainer() {
     if (document.getElementById(SHADOW_HOST_ID)) return;
 
@@ -21,9 +21,11 @@
       position: fixed;
       top: 0;
       left: 0;
-      z-index: 2147483647; /* max z-index */
+      z-index: 2147483647; /* Highest z-index */
     `;
-    document.documentElement.appendChild(host);
+
+    // 🚀 Mount outside <html>, so it’s fully isolated
+    (document.head || document.documentElement).insertAdjacentElement("beforebegin", host);
 
     shadowRoot = host.attachShadow({ mode: "open" });
 
@@ -54,9 +56,11 @@
     const div = document.createElement("div");
     div.id = RESULT_DIV_ID;
     shadowRoot.appendChild(div);
+
+    console.log("🧩 Shadow container created outside page DOM");
   }
 
-  // 🧩 Get reference to result div (inside Shadow DOM)
+  // 🧩 Get reference to result div inside Shadow DOM
   function getResultDiv() {
     if (!shadowRoot) createShadowContainer();
     return shadowRoot.getElementById(RESULT_DIV_ID);
@@ -78,6 +82,7 @@
       color: #007bff;
       transition: all 0.2s ease-in-out;
     `;
+
     btn.addEventListener("mouseover", () => {
       btn.style.background = "#007bff";
       btn.style.color = "#fff";
