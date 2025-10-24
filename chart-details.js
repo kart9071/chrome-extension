@@ -1,22 +1,15 @@
+document.getElementById("closeBtn").addEventListener("click", () => window.close());
+
 const urlParams = new URLSearchParams(window.location.search);
 const member_id = urlParams.get("member_id");
 const member_name = urlParams.get("member_name");
 
 document.getElementById("heading").textContent = `Chart Details - ${member_name}`;
+const contentDiv = document.getElementById("content");
 
-document.getElementById("closeBtn").addEventListener("click", () => {
-  window.close();
-});
-
-// Send message to background to fetch data (avoids CORS)
 chrome.runtime.sendMessage(
-  {
-    action: "fetchChartDetails",
-    payload: { member_id, member_name }
-  },
+  { action: "fetchChartDetails", payload: { member_id, member_name } },
   (response) => {
-    const contentDiv = document.getElementById("content");
-
     if (chrome.runtime.lastError) {
       contentDiv.innerHTML = `<p style="color:red;">Error: ${chrome.runtime.lastError.message}</p>`;
       return;
