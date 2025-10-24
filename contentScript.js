@@ -19,8 +19,8 @@
       position: fixed;
       top: 80px;
       right: 20px;
-      width: 420px;
-      max-height: 80vh;
+      width: 650px;
+      max-height: 90vh;
       overflow-y: auto;
       background: #fff;
       border: 1px solid #ccc;
