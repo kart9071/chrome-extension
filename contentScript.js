@@ -2,13 +2,55 @@
   const TABLE_SELECTOR = "#ctl00_MainContent_ucPatientDetail_dlPatient";
   const UL_SELECTOR = "#ulReadPatientDetail";
   const FLOATING_DIV_ID = "ct-chart-floating";
+  const FLOATING_ICON_ID = "ct-chart-icon";
 
   let observer;
   let hasLoaded = false;
+  let isOpen = false;
 
-  console.log("🔍 CareTracker extension: auto chart details loader running.");
+  console.log("🔍 CareTracker extension: auto chart details icon loader running.");
 
-  // 🧩 Create floating div
+  // 🧩 Create floating icon button
+  function createFloatingIcon() {
+    const existing = document.getElementById(FLOATING_ICON_ID);
+    if (existing) return existing;
+
+    const icon = document.createElement("div");
+    icon.id = FLOATING_ICON_ID;
+    icon.title = "View Chart Details";
+    icon.style.cssText = `
+      position: fixed;
+      top: 80px;
+      right: 20px;
+      width: 50px;
+      height: 50px;
+      background: #007bff;
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 24px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      cursor: pointer;
+      z-index: 9999;
+    `;
+    icon.textContent = "🩺";
+    document.body.appendChild(icon);
+
+    icon.addEventListener("click", () => {
+      if (!isOpen) {
+        const div = createFloatingDiv();
+        div.style.display = "block";
+        icon.style.display = "none";
+        isOpen = true;
+      }
+    });
+
+    return icon;
+  }
+
+  // 🧩 Create floating div (details window)
   function createFloatingDiv() {
     const existing = document.getElementById(FLOATING_DIV_ID);
     if (existing) return existing;
@@ -31,21 +73,28 @@
       font-family: Arial, sans-serif;
       font-size: 13px;
       color: #333;
+      display: none;
     `;
 
     div.innerHTML = `
       <div style="display:flex; justify-content:space-between; align-items:center;">
         <h3 id="chartTitle" style="margin:0; font-size:15px; color:#007bff;">Chart Details</h3>
-        <button id="closeChartDiv" style="background:#f33; color:#fff; border:none; border-radius:5px; cursor:pointer; padding:2px 6px;">✕</button>
+        <button id="closeChartDiv" 
+          style="background:#f33; color:#fff; border:none; border-radius:5px; cursor:pointer; padding:2px 6px;">
+          ✕
+        </button>
       </div>
       <div id="chartContent" style="margin-top:10px;">Loading...</div>
     `;
 
     document.body.appendChild(div);
 
+    // 🧩 Close action → hide div, show icon again
     document.getElementById("closeChartDiv").addEventListener("click", () => {
-      div.remove();
-      hasLoaded = false;
+      div.style.display = "none";
+      const icon = document.getElementById(FLOATING_ICON_ID);
+      if (icon) icon.style.display = "flex";
+      isOpen = false;
     });
 
     return div;
@@ -135,7 +184,7 @@
     );
   }
 
-  // 🧩 Detect patient info and trigger automatically
+  // 🧩 Detect patient info and prepare
   function tryAutoLoad() {
     if (hasLoaded) return;
 
@@ -148,7 +197,8 @@
 
     if (chartNumber && patientName) {
       console.log(`🧩 Found patient: ${patientName} (${chartNumber})`);
-      const div = createFloatingDiv();
+      createFloatingIcon(); // show icon
+      createFloatingDiv();  // prepare hidden div
       fetchChartDetails(chartNumber, patientName);
       hasLoaded = true;
     }
@@ -158,6 +208,6 @@
   observer = new MutationObserver(() => tryAutoLoad());
   observer.observe(document.body, { childList: true, subtree: true });
 
-  // Try once immediately
+  // Try immediately
   tryAutoLoad();
 })();
