@@ -4,7 +4,11 @@
   "version": "1.0",
   "description": "Shows a button when CareTracker patient table appears.",
   "permissions": ["scripting", "activeTab", "storage"],
-  "host_permissions": ["https://*.caretracker.com/*"],
+  "host_permissions": [
+    "https://*.caretracker.com/*",
+    "https://h4xqr89uik.execute-api.us-east-1.amazonaws.com/dev/*",
+    "https://sfe5arbv61.execute-api.us-east-1.amazonaws.com/dev/*"
+  ],
   "background": {
     "service_worker": "service_worker.js"
   },
@@ -19,5 +23,3 @@
   ],
   "options_page": "options.html"
 }
-
-
