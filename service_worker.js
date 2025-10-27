@@ -1,78 +1,60 @@
-// =============================
-// 🔧 CareTracker Extension Service Worker
-// =============================
+console.log("⚙️ CareTracker service worker loaded.");
 
-console.log("⚙️ Service worker loaded.");
-
-// Listen for messages from content scripts
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  // Handle chart details fetch
   if (message.action === "fetchChartDetails") {
     const { member_id, member_name } = message.payload;
-
-    console.log(`📡 Fetching chart details for: ${member_name} (${member_id})`);
-
-    (async () => {
-      try {
-        // Call your backend API
-        const res = await fetch("https://h4xqr89uik.execute-api.us-east-1.amazonaws.com/dev/", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ member_id, member_name }),
-        });
-
-        console.log(`error got this error able to get the response ${res}`)
-
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status} - ${res.statusText}`);
-          
-        }
-        console.log(`error got this error able to get the passed ${res}`)
-        const data = await res.json();
-
-        console.log("✅ Chart details fetched successfully:", data);
-
-        sendResponse({ data });
-      } catch (err) {
-        console.error("❌ Fetch error:", err);
-        sendResponse({ error: err.message });
-      }
-    })();
-
-    // Required: keep message channel open for async response
+    fetchWithTimeout(
+      "https://h4xqr89uik.execute-api.us-east-1.amazonaws.com/dev/",
+      { member_id, member_name },
+      10000 // 10 seconds timeout
+    )
+      .then((data) => sendResponse({ data }))
+      .catch((err) => sendResponse({ error: err.message }));
     return true;
   }
-    // Handle audit details fetch
+
   if (message.action === "fetchAuditDetails") {
-    const { member_id,member_name } = message.payload;
-
-    console.log(`📡 Fetching audit details for: ${member_id}`);
-
-    (async () => {
-      try {
-        const res = await fetch("https://sfe5arbv61.execute-api.us-east-1.amazonaws.com/dev", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ member_id, member_name }),
-        });
-
-        console.log(`error got this error able to get the response ${res}`)
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status} - ${res.statusText}`);
-        }
-        console.log(`error got this error able to get the passed ${res}`)
-        const data = await res.json();
-        console.log("✅ Audit details fetched successfully:", data);
-        sendResponse({ data });
-      } catch (err) {
-        console.error("❌ Audit fetch error:", err);
-        sendResponse({ error: err.message });
-      }
-    })();
-
+    const { member_id, member_name } = message.payload;
+    fetchWithTimeout(
+      "https://sfe5arbv61.execute-api.us-east-1.amazonaws.com/dev",
+      { member_id, member_name },
+      10000 // 10 seconds timeout
+    )
+      .then((data) => sendResponse({ data }))
+      .catch((err) => sendResponse({ error: err.message }));
     return true;
   }
-
-  return false;
 });
 
+/**
+ * Helper: fetch with timeout
+ */
+async function fetchWithTimeout(url, body, timeoutMs) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => {
+    controller.abort();
+  }, timeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (err) {
+    if (err.name === "AbortError") {
+      throw new Error(`⚠️ Request timed out after ${timeoutMs / 1000} seconds`);
+    }
+    throw new Error(`❌ Fetch failed: ${err.message}`);
+  } finally {
+    clearTimeout(timeout);
+  }
+}

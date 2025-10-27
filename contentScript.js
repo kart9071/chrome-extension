@@ -1,27 +1,28 @@
 (() => {
   const TABLE_SELECTOR = "#ctl00_MainContent_ucPatientDetail_dlPatient";
   const UL_SELECTOR = "#ulReadPatientDetail";
-  const FLOATING_DIV_ID_1 = "ct-chart-floating-1";
-  const FLOATING_DIV_ID_2 = "ct-chart-floating-2";
-  const FLOATING_ICON_ID_1 = "ct-chart-icon-1";
-  const FLOATING_ICON_ID_2 = "ct-chart-icon-2";
+  const FLOATING_DIV_ID = "ct-chart-floating";
+  const FLOATING_ICON_ID = "ct-chart-icon";
+
+  const FLOATING_DIV_ID_2 = "ct-audit-floating";
+  const FLOATING_ICON_ID_2 = "ct-audit-icon";
 
   let observer;
   let hasLoaded = false;
-  let isOpen1 = false;
-  let isOpen2 = false;
+  let isOpenChart = false;
+  let isOpenAudit = false;
 
-  console.log("🔍 CareTracker extension: dual chart details icon loader running.");
+  console.log("🔍 CareTracker extension: auto chart & audit icon loader running.");
 
   // ==============================
-  // 🩺 Create Floating Icon 1 (Chart Details)
+  // 🩺 Create Chart Details Icon
   // ==============================
   function createFloatingIcon1() {
-    const existing = document.getElementById(FLOATING_ICON_ID_1);
+    const existing = document.getElementById(FLOATING_ICON_ID);
     if (existing) return existing;
 
     const icon = document.createElement("div");
-    icon.id = FLOATING_ICON_ID_1;
+    icon.id = FLOATING_ICON_ID;
     icon.title = "View Chart Details";
     icon.style.cssText = `
       position: fixed;
@@ -44,11 +45,11 @@
     document.body.appendChild(icon);
 
     icon.addEventListener("click", () => {
-      if (!isOpen1) {
+      if (!isOpenChart) {
         const div = createFloatingDiv1();
         div.style.display = "block";
         icon.style.display = "none";
-        isOpen1 = true;
+        isOpenChart = true;
       }
     });
 
@@ -56,7 +57,7 @@
   }
 
   // ==============================
-  // 📋 Create Floating Icon 2 (Audit Details)
+  // 🧾 Create Audit Details Icon
   // ==============================
   function createFloatingIcon2() {
     const existing = document.getElementById(FLOATING_ICON_ID_2);
@@ -67,7 +68,7 @@
     icon.title = "View Audit Details";
     icon.style.cssText = `
       position: fixed;
-      top: 150px;
+      top: 140px;
       right: 20px;
       width: 50px;
       height: 50px;
@@ -82,15 +83,15 @@
       cursor: pointer;
       z-index: 9999;
     `;
-    icon.textContent = "📋";
+    icon.textContent = "🧾";
     document.body.appendChild(icon);
 
     icon.addEventListener("click", () => {
-      if (!isOpen2) {
+      if (!isOpenAudit) {
         const div = createFloatingDiv2();
         div.style.display = "block";
         icon.style.display = "none";
-        isOpen2 = true;
+        isOpenAudit = true;
       }
     });
 
@@ -98,14 +99,14 @@
   }
 
   // ==============================
-  // 🩺 Floating Div 1 (Chart Details)
+  // Floating Div 1 - Chart Details
   // ==============================
   function createFloatingDiv1() {
-    const existing = document.getElementById(FLOATING_DIV_ID_1);
+    const existing = document.getElementById(FLOATING_DIV_ID);
     if (existing) return existing;
 
     const div = document.createElement("div");
-    div.id = FLOATING_DIV_ID_1;
+    div.id = FLOATING_DIV_ID;
     div.style.cssText = `
       position: fixed;
       top: 80px;
@@ -127,29 +128,29 @@
 
     div.innerHTML = `
       <div style="display:flex; justify-content:space-between; align-items:center;">
-        <h3 id="chartTitle1" style="margin:0; font-size:15px; color:#007bff;">Chart Details</h3>
-        <button id="closeChartDiv1" 
+        <h3 id="chartTitle" style="margin:0; font-size:15px; color:#007bff;">Chart Details</h3>
+        <button id="closeChartDiv"
           style="background:#f33; color:#fff; border:none; border-radius:5px; cursor:pointer; padding:2px 6px;">
           ✕
         </button>
       </div>
-      <div id="chartContent1" style="margin-top:10px;">Loading...</div>
+      <div id="chartContent" style="margin-top:10px;">Loading...</div>
     `;
 
     document.body.appendChild(div);
 
-    document.getElementById("closeChartDiv1").addEventListener("click", () => {
+    document.getElementById("closeChartDiv").addEventListener("click", () => {
       div.style.display = "none";
-      const icon = document.getElementById(FLOATING_ICON_ID_1);
+      const icon = document.getElementById(FLOATING_ICON_ID);
       if (icon) icon.style.display = "flex";
-      isOpen1 = false;
+      isOpenChart = false;
     });
 
     return div;
   }
 
   // ==============================
-  // 📋 Floating Div 2 (Audit Details)
+  // Floating Div 2 - Audit Details
   // ==============================
   function createFloatingDiv2() {
     const existing = document.getElementById(FLOATING_DIV_ID_2);
@@ -159,9 +160,9 @@
     div.id = FLOATING_DIV_ID_2;
     div.style.cssText = `
       position: fixed;
-      top: 80px;
-      right: 690px;
-      width: 600px;
+      top: 140px;
+      right: 20px;
+      width: 650px;
       max-height: 90vh;
       overflow-y: auto;
       background: #fff;
@@ -178,159 +179,68 @@
 
     div.innerHTML = `
       <div style="display:flex; justify-content:space-between; align-items:center;">
-        <h3 id="chartTitle2" style="margin:0; font-size:15px; color:#28a745;">Audit Details</h3>
-        <button id="closeChartDiv2" 
+        <h3 id="auditTitle" style="margin:0; font-size:15px; color:#28a745;">Audit Details</h3>
+        <button id="closeAuditDiv"
           style="background:#f33; color:#fff; border:none; border-radius:5px; cursor:pointer; padding:2px 6px;">
           ✕
         </button>
       </div>
-      <div id="chartContent2" style="margin-top:10px;">Loading...</div>
+      <div id="auditContent" style="margin-top:10px;">Loading...</div>
     `;
 
     document.body.appendChild(div);
 
-    document.getElementById("closeChartDiv2").addEventListener("click", () => {
+    document.getElementById("closeAuditDiv").addEventListener("click", () => {
       div.style.display = "none";
       const icon = document.getElementById(FLOATING_ICON_ID_2);
       if (icon) icon.style.display = "flex";
-      isOpen2 = false;
+      isOpenAudit = false;
     });
 
     return div;
   }
 
   // ==============================
-  // 🧩 Fetch Chart Details API (existing)
+  // Fetch Chart Details
   // ==============================
   function fetchChartDetails(member_id, member_name) {
-    const contentDiv = document.getElementById("chartContent1");
-    document.getElementById("chartTitle1").textContent = `Chart Details - ${member_name}`;
+    const contentDiv = document.getElementById("chartContent");
+    document.getElementById("chartTitle").textContent = `Chart Details - ${member_name}`;
     contentDiv.innerHTML = "<p>Loading...</p>";
 
     chrome.runtime.sendMessage(
       { action: "fetchChartDetails", payload: { member_id, member_name } },
-      (response) => handleChartResponse(response, contentDiv)
-    );
-  }
-
-  // ==============================
-  // 📋 Fetch Audit Details API (new)
-  // ==============================
-  function fetchAuditDetails(member_id, member_name) {
-    const contentDiv = document.getElementById("chartContent2");
-    document.getElementById("chartTitle2").textContent = `Audit Details - ${member_name}`;
-    contentDiv.innerHTML = "<p>Loading...</p>";
-
-    chrome.runtime.sendMessage(
-      { action: "fetchAuditDetails", payload: { member_id, member_name } },
       (response) => {
-        if (chrome.runtime.lastError) {
-          contentDiv.innerHTML = `<p style="color:red;">Error: ${chrome.runtime.lastError.message}</p>`;
-          return;
-        }
-        if (!response) {
-          contentDiv.innerHTML = `<p style="color:red;">No response from background script.</p>`;
-          return;
-        }
-        if (response.error) {
-          contentDiv.innerHTML = `<p style="color:red;">❌ ${response.error}</p>`;
-          return;
-        }
-
-        const data = response.data;
-        if (!data) {
-          contentDiv.innerHTML = `<p>No audit details available.</p>`;
-          return;
-        }
-
-        contentDiv.innerHTML = `
-          <p><strong>Audit ID:</strong> ${data.audit_id || "N/A"}</p>
-          <p><strong>Status:</strong> ${data.status || "Pending"}</p>
-          <p><strong>Reviewed By:</strong> ${data.reviewer || "Unknown"}</p>
-          <p><strong>Notes:</strong> ${data.notes || "—"}</p>
-        `;
+        contentDiv.innerHTML = response?.error
+          ? `<p style="color:red;">❌ ${response.error}</p>`
+          : `<pre>${JSON.stringify(response.data, null, 2)}</pre>`;
       }
     );
   }
 
   // ==============================
-  // 📦 Handle Chart API Response
+  // Fetch Audit Details
   // ==============================
-  function handleChartResponse(response, contentDiv) {
-    if (chrome.runtime.lastError) {
-      contentDiv.innerHTML = `<p style="color:red;">Error: ${chrome.runtime.lastError.message}</p>`;
-      return;
-    }
-    if (!response) {
-      contentDiv.innerHTML = `<p style="color:red;">No response from background script.</p>`;
-      return;
-    }
-    if (response.error) {
-      contentDiv.innerHTML = `<p style="color:red;">❌ ${response.error}</p>`;
-      return;
-    }
+  function fetchAuditDetails(member_id, member_name) {
+    const contentDiv = document.getElementById("auditContent");
+    document.getElementById("auditTitle").textContent = `Audit Details - ${member_name}`;
+    contentDiv.innerHTML = "<p>Loading...</p>";
 
-    const data = response.data;
-    if (!data) {
-      contentDiv.innerHTML = `<p>No chart details available.</p>`;
-      return;
-    }
-
-    // 🩺 Patient Info
-    const patient = data.chart_response?.data?.member;
-    if (patient) {
-      const section = document.createElement("section");
-      section.innerHTML = `
-        <h4>Patient Info</h4>
-        <p><strong>Name:</strong> ${patient.fname} ${patient.lname}</p>
-        <p><strong>DOB:</strong> ${patient.DOB}</p>
-        <p><strong>EMR Chart #:</strong> ${patient.emr_chart_number}</p>
-        <p><strong>PCP:</strong> ${patient.pcp?.name || "N/A"}</p>
-      `;
-      contentDiv.appendChild(section);
-    }
-
-    // 🗓️ Appointment Info
-    const appt = data.chart_response?.data?.appointment;
-    if (appt) {
-      const section = document.createElement("section");
-      section.innerHTML = `
-        <h4>Appointment Info</h4>
-        <p><strong>Date of Service:</strong> ${new Date(appt.DOS).toLocaleDateString()}</p>
-        <p><strong>Facility:</strong> ${appt.facility}</p>
-      `;
-      contentDiv.appendChild(section);
-    }
-
-    // 📋 Medical Conditions
-    const conditions = data.chart_response?.data?.medical_conditions || [];
-    if (conditions.length > 0) {
-      const section = document.createElement("section");
-      section.innerHTML = `<h4>Medical Conditions</h4>`;
-      conditions.forEach((cond) => {
-        const div = document.createElement("div");
-        div.className = "medical-condition";
-        div.style.marginBottom = "10px";
-        div.innerHTML = `
-          <p><strong>Condition:</strong> ${cond.condition_name}</p>
-          <p><strong>ICD Code:</strong> ${cond.icd_code}</p>
-          <p><strong>Clinical Indicators:</strong> ${cond.clinical_indicators}</p>
-          <p><strong>Documentation:</strong> ${cond.documented_in}</p>
-          <p><strong>Code Status:</strong> ${cond.code_status}</p>
-          <p><strong>Code Explanation:</strong> ${cond.code_explanation}</p>
-        `;
-        section.appendChild(div);
-      });
-      contentDiv.appendChild(section);
-    }
+    chrome.runtime.sendMessage(
+      { action: "fetchAuditDetails", payload: { member_id, member_name } },
+      (response) => {
+        contentDiv.innerHTML = response?.error
+          ? `<p style="color:red;">❌ ${response.error}</p>`
+          : `<pre>${JSON.stringify(response.data, null, 2)}</pre>`;
+      }
+    );
   }
 
   // ==============================
-  // 🔍 Auto-Detect and Load
+  // Detect Patient and Load Icons
   // ==============================
   function tryAutoLoad() {
     if (hasLoaded) return;
-
     const table = document.querySelector(TABLE_SELECTOR);
     const ul = document.querySelector(UL_SELECTOR);
     if (!table || !ul) return;
@@ -341,8 +251,8 @@
     if (chartNumber && patientName) {
       console.log(`🧩 Found patient: ${patientName} (${chartNumber})`);
       createFloatingIcon1();
-      createFloatingDiv1();
       createFloatingIcon2();
+      createFloatingDiv1();
       createFloatingDiv2();
       fetchChartDetails(chartNumber, patientName);
       fetchAuditDetails(chartNumber, patientName);
