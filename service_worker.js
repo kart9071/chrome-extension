@@ -21,10 +21,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           body: JSON.stringify({ member_id, member_name }),
         });
 
+        console.log(`error got this error able to get the response ${res}`)
+
         if (!res.ok) {
           throw new Error(`HTTP ${res.status} - ${res.statusText}`);
+          
         }
-
+        console.log(`error got this error able to get the passed ${res}`)
         const data = await res.json();
 
         console.log("✅ Chart details fetched successfully:", data);
@@ -53,10 +56,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           body: JSON.stringify({ member_id, member_name }),
         });
 
+        console.log(`error got this error able to get the response ${res}`)
         if (!res.ok) {
           throw new Error(`HTTP ${res.status} - ${res.statusText}`);
         }
-
+        console.log(`error got this error able to get the passed ${res}`)
         const data = await res.json();
         console.log("✅ Audit details fetched successfully:", data);
         sendResponse({ data });
