@@ -41,7 +41,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
     // Handle audit details fetch
   if (message.action === "fetchAuditDetails") {
-    const { member_id } = message.payload;
+    const { member_id,member_name } = message.payload;
 
     console.log(`📡 Fetching audit details for: ${member_id}`);
 
