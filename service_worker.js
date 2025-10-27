@@ -39,6 +39,35 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // Required: keep message channel open for async response
     return true;
   }
+    // Handle audit details fetch
+  if (message.action === "fetchAuditDetails") {
+    const { member_id } = message.payload;
+
+    console.log(`📡 Fetching audit details for: ${member_id}`);
+
+    (async () => {
+      try {
+        const res = await fetch("https://sfe5arbv61.execute-api.us-east-1.amazonaws.com/dev", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ member_id }),
+        });
+
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status} - ${res.statusText}`);
+        }
+
+        const data = await res.json();
+        console.log("✅ Audit details fetched successfully:", data);
+        sendResponse({ data });
+      } catch (err) {
+        console.error("❌ Audit fetch error:", err);
+        sendResponse({ error: err.message });
+      }
+    })();
+
+    return true;
+  }
 
   return false;
 });
