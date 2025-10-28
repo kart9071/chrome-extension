@@ -35,29 +35,31 @@
         transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
       }
 
-      .floating-icon-btn {
+      .floating-icon-input {
         width: 45px;
         height: 45px;
         background: #fff;
         color: #007bff;
         border: none;
         border-radius: 50%;
-        font-size: 20px;
+        font-size: 22px;
+        font-weight: bold;
         cursor: pointer;
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
         transition: all 0.3s ease;
         display: flex;
         align-items: center;
         justify-content: center;
-        position: relative;
+        text-align: center;
+        padding: 0;
       }
 
-      .floating-icon-btn:hover {
+      .floating-icon-input:hover {
         transform: scale(1.05);
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
       }
 
-      .floating-icon-btn.active {
+      .floating-icon-input.active {
         background: #28a745;
         color: #fff;
       }
@@ -87,17 +89,19 @@
     container.className = "floating-buttons";
     container.id = FLOATING_BUTTONS_ID;
 
-    // Chart Button
-    const chartBtn = document.createElement("button");
-    chartBtn.className = "floating-icon-btn chart-btn";
-    chartBtn.innerHTML = "📊";
+    // Chart Input Button
+    const chartBtn = document.createElement("input");
+    chartBtn.type = "button";
+    chartBtn.className = "floating-icon-input chart-btn";
+    chartBtn.value = "📊";
     chartBtn.title = "Chart Details";
     chartBtn.addEventListener("click", () => showChartDetails(chartBtn));
 
-    // Audit Button
-    const auditBtn = document.createElement("button");
-    auditBtn.className = "floating-icon-btn audit-btn";
-    auditBtn.innerHTML = "📋";
+    // Audit Input Button
+    const auditBtn = document.createElement("input");
+    auditBtn.type = "button";
+    auditBtn.className = "floating-icon-input audit-btn";
+    auditBtn.value = "📋";
     auditBtn.title = "Audit Details";
     auditBtn.addEventListener("click", () => showAuditTable(auditBtn));
 
@@ -203,10 +207,7 @@
     }
   }
 
-  // Watch DOM for patient info
   observer = new MutationObserver(() => tryAutoLoad());
   observer.observe(document.body, { childList: true, subtree: true });
-
-  // Initial check
   tryAutoLoad();
 })();
