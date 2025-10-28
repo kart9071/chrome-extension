@@ -440,7 +440,7 @@
 
       /* Tooltip Animation for Active States */
       .floating-icon-btn.chart-btn.active::before {
-        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        background: #28a745;
       }
 
       .floating-icon-btn.chart-btn.active::after {
@@ -454,7 +454,7 @@
 
       /* Condition Audit Button Active States */
       .floating-icon-btn.condition-audit-btn.active::before {
-        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        background: #28a745;
       }
 
       .floating-icon-btn.condition-audit-btn.active::after {
