@@ -692,6 +692,15 @@
         overflow: hidden;
       }
 
+      /* Ensure chartContent fills available space and allows inner scrolling */
+      #ct-chart-floating #chartContent {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0; /* critical for children with overflow to scroll inside flex containers */
+        overflow: hidden;
+      }
+
       #ct-chart-floating.show {
         transform: translateX(0);
       }
@@ -1539,6 +1548,56 @@
     showAuditContent();
   }
 
+  // Fetch chart details from the extension service worker
+  function fetchChartDetailsFromServiceWorker(memberId, memberName) {
+    return new Promise((resolve, reject) => {
+      try {
+        chrome.runtime.sendMessage(
+          { action: 'fetchChartDetails', payload: { member_id: memberId, member_name: memberName } },
+          (response) => {
+            if (chrome.runtime.lastError) {
+              return reject(new Error(chrome.runtime.lastError.message));
+            }
+            if (!response) return reject(new Error('No response from service worker'));
+            if (response.error) return reject(new Error(response.error));
+            return resolve(response.data);
+          }
+        );
+      } catch (err) {
+        reject(err);
+      }
+    });
+  }
+
+  // Map API medical_conditions -> internal medicalConditionsData shape
+  function mapApiMedicalConditions(apiConditions) {
+    if (!Array.isArray(apiConditions)) return [];
+    return apiConditions.map((c, idx) => {
+      return {
+        id: c.id || idx,
+        title: c.condition_name || c.diagnosis || 'Unknown condition',
+        icon: c.isChronic ? '🩺' : '📌',
+        details: {
+          icd10: (c.icd_code || '').toString(),
+          hcc24: c.hcc_v24 || c.hcc24 || null,
+          hcc28: c.hcc_v28 || c.hcc28 || null,
+          rxHcc: c.rx_hcc || c.rxHcc || null,
+          source: c.documented_in || c.source || '',
+          note: !!(c.analyst_notes || c.query),
+          active: !!c.isChronic,
+          code_type: c.code_type || '',
+          RADV_score: c.RADV_score || c.radv_score || 0,
+          code_status: c.code_status || '' ,
+          date: c.last_documented_date || null
+        },
+        description: c.code_explanation || '',
+        clinicalIndicators: c.clinical_indicators || '',
+        codeExplanation: c.code_explanation || '',
+        noteText: c.analyst_notes || c.documented_in || null
+      };
+    });
+  }
+
   // Create floating buttons
   function createFloatingButtons() {
     const existing = document.getElementById('floatingButtons');
@@ -1607,6 +1666,11 @@
   }
 
   function showPanel(type) {
+    // Ensure UI exists (idempotent)
+    createFloatingButtons();
+    createBackdrop();
+    createFloatingPanel();
+
     const div = document.getElementById(FLOATING_DIV_ID);
     const backdrop = document.getElementById('backdrop');
     const floatingButtons = document.getElementById('floatingButtons');
@@ -1661,8 +1725,62 @@
     showPanel('audit');
   }
 
-  function showChartDetails() {
+  async function showChartDetails() {
+    // Try to infer member info from the page when possible
+    let memberId = "89700511";
+    let memberName = 'fdsfds';
+    try {
+      const ul = document.querySelector(UL_SELECTOR);
+      if (ul) {
+        memberName = ul.innerText.trim().split('\n')[0] || '';
+      }
+      // fallback: try table selector
+      if (!memberName) {
+        const tbl = document.querySelector(TABLE_SELECTOR);
+        if (tbl) memberName = tbl.innerText.trim().split('\n')[0] || '';
+      }
+    } catch (e) {
+      // ignore parsing errors
+    }
+
+    // Show loading UI while fetching
     showPanel('chart');
+    const chartContent = document.getElementById('chartContent');
+    if (chartContent) {
+      chartContent.innerHTML = `<div style="padding:20px">Loading chart details...</div>`;
+    }
+
+    try {
+      const apiData = await fetchChartDetailsFromServiceWorker(memberId, memberName);
+      // The service worker returns a wrapper { status, message, data }
+      const payload = apiData && apiData.data ? apiData.data : apiData;
+      const apiConditions = payload && payload.medical_conditions ? payload.medical_conditions : [];
+
+      
+      const mapped = mapApiMedicalConditions(apiConditions);
+
+
+      // Replace medicalConditionsData contents with mapped results
+      medicalConditionsData.length = 0;
+      Array.prototype.push.apply(medicalConditionsData, mapped);
+      console.log("updated the medicalConditionsData:", medicalConditionsData);
+      // Update title if member info available
+      if (payload && payload.member) {
+        const name = `${payload.member.fname || ''} ${payload.member.lname || ''}`.trim();
+        if (name) document.getElementById('chartTitle').textContent = `Chart Details - ${name}`;
+      } else if (memberName) {
+        document.getElementById('chartTitle').textContent = `Chart Details - ${memberName}`;
+      }
+      console.log("updated the member details")
+
+      // Refresh UI
+      updateChartContent();
+    } catch (err) {
+      console.error('Failed to fetch chart details:', err);
+      if (chartContent) {
+        chartContent.innerHTML = `<div style="padding:20px;color:#c00">Failed to load chart details: ${err.message}</div>`;
+      }
+    }
   }
 
   function showConditionAuditTable() {
@@ -1693,8 +1811,15 @@
   }
 
   function showChartContent() {
-    // Check if content already exists
+    // Ensure chartContent element exists
     let chartContent = document.getElementById('chartContent');
+    if (!chartContent) {
+      // Try to create the panel and re-query
+      createFloatingPanel();
+      chartContent = document.getElementById('chartContent');
+    }
+    if (!chartContent) return; // give up safely if still missing
+
     let medicalSection = chartContent.querySelector('.medical-conditions-section');
 
     if (!medicalSection) {
@@ -1732,12 +1857,28 @@
 
   function updateChartContent() {
     const filteredConditions = filterMedicalConditions();
+    // console.log("filteredConditions:", filteredConditions);
+    const chartContent = document.getElementById('chartContent');
+    // If chartContent is missing, try to create panel and abort safely
+    if (!chartContent) {
+      createFloatingPanel();
+    }
+
     const scrollContainer = document.querySelector('.medical-conditions-scroll');
     const resultsCount = document.querySelector('.search-results-count');
 
     if (filteredConditions.length === 0 && searchTerm.trim()) {
       // Show no results UI
-      scrollContainer.innerHTML = `
+      if (!scrollContainer) {
+        // create a minimal container if missing
+        if (chartContent) chartContent.innerHTML = `
+          <div class="medical-conditions-section">
+            <h4>Medical Conditions</h4>
+            <div class="medical-conditions-scroll"></div>
+          </div>`;
+      }
+      const targetScroll = scrollContainer || document.querySelector('.medical-conditions-scroll');
+      if (targetScroll) targetScroll.innerHTML = `
         <div class="no-results">
           <div class="no-results-icon">🔍</div>
           <h3>No conditions found</h3>
@@ -1753,14 +1894,15 @@
           </div>
         </div>
       `;
+      console.log("Updated inner HTML in if")
     } else {
       // Show filtered conditions
       const conditionsHTML = filteredConditions
         .map(condition => {
           const RADV_score = condition.details.RADV_score || 0;
           const code_status = condition.details.code_status || '';
-          const rxHcc = condition.details.rxHcc;
-          const hcc28 = condition.details.hcc28;
+          const rxHcc = condition.details.rxHcc || null;
+          const hcc28 = condition.details.hcc28 || null;
           const isRADV = (code_status === "DOCUMENTED" && (RADV_score > 0 && RADV_score < 4) && (rxHcc?.length > 0 || hcc28?.length > 0));
           
           return `
@@ -1821,7 +1963,16 @@
         })
         .join('');
 
-      scrollContainer.innerHTML = conditionsHTML;
+      if (!scrollContainer) {
+        if (chartContent) chartContent.innerHTML = `
+          <div class="medical-conditions-section">
+            <h4>Medical Conditions</h4>
+            <div class="medical-conditions-scroll">${conditionsHTML}</div>
+          </div>`;
+      } else {
+        scrollContainer.innerHTML = conditionsHTML;
+      }
+      console.log("updated conditions HTML in else");
     }
 
     // Update results count
@@ -2092,12 +2243,15 @@
   function tryAutoLoad() {
     if (hasLoaded) return;
 
-    const table = document.querySelector(TABLE_SELECTOR);
-    const ul = document.querySelector(UL_SELECTOR);
-    if (!table || !ul) return;
+    // const table = document.querySelector(TABLE_SELECTOR);
+    // const ul = document.querySelector(UL_SELECTOR);
+    // if (!table || !ul) return;
 
-    const chartNumber = document.querySelector("#chartNumber")?.textContent?.trim();
-    const patientName = document.querySelector("#patientName")?.textContent?.trim();
+    // const chartNumber = document.querySelector("#chartNumber")?.textContent?.trim();
+    // const patientName = document.querySelector("#patientName")?.textContent?.trim();
+
+    const chartNumber = "89700511";
+    const patientName = "John Doe";
 
     if (chartNumber && patientName) {
       console.log(`🧩 Found patient: ${patientName} (${chartNumber})`);
