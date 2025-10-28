@@ -7,23 +7,11 @@
   let hasLoaded = false;
 
   // State management
-  let panelVisible = false;
-  let panelShow = false;
-  let backdropVisible = false;
-  let isChartActive = false;
-  let isAuditTableActive = false;
-  let isConditionAuditActive = false;
   let contentType = 'chart';
   let searchTerm = '';
-  let auditSearchTerm = '';
   let conditionAuditSearchTerm = '';
-  let buttonsShifted = false;
-  let currentPage = 1;
-  let sortConfig = { key: null, direction: 'asc' };
   let conditionAuditSortConfig = { key: null, direction: 'asc' };
-  const itemsPerPage = 20;
 
-  console.log("🔍 CareTracker extension: auto chart details loader running.");
 
   // Medical Conditions Data
   const medicalConditionsData = [
@@ -282,181 +270,8 @@
     }
   ];
 
-  // Audit Table Data
-  const auditTableData = [
-    {
-      chartId: 1019,
-      dos: '09/17/2025',
-      name: 'James Washington',
-      provider: 'Jatin N Sheth',
-      hccCount: 7,
-      conditionsForAudit: 4,
-      radvCompleted: 1,
-      initialQualityScore: 1.40
-    },
-    {
-      chartId: 1016,
-      dos: '09/17/2025',
-      name: 'Charles R Chick',
-      provider: 'Jatin N Sheth',
-      hccCount: 10,
-      conditionsForAudit: 2,
-      radvCompleted: 0,
-      initialQualityScore: 1.14
-    },
-    {
-      chartId: 1008,
-      dos: '09/15/2025',
-      name: 'Sheryl S Markey',
-      provider: 'PS-Pariksith Singh',
-      hccCount: 3,
-      conditionsForAudit: 2,
-      radvCompleted: 0,
-      initialQualityScore: 1.67
-    },
-    {
-      chartId: 1011,
-      dos: '09/15/2025',
-      name: 'Karen K Frick',
-      provider: 'Alex Anthony Tambrini',
-      hccCount: 4,
-      conditionsForAudit: 1,
-      radvCompleted: 0,
-      initialQualityScore: 1.18
-    },
-    {
-      chartId: 1002,
-      dos: '09/12/2025',
-      name: 'Yvonne S Holm',
-      provider: 'PS-Loida Buaquina',
-      hccCount: 9,
-      conditionsForAudit: 7,
-      radvCompleted: 5,
-      initialQualityScore: 1.41
-    },
-    {
-      chartId: 1006,
-      dos: '09/12/2025',
-      name: 'Mary K Carwell',
-      provider: 'PS-James Craig',
-      hccCount: 8,
-      conditionsForAudit: 5,
-      radvCompleted: 0,
-      initialQualityScore: 1.74
-    },
-    {
-      chartId: 1010,
-      dos: '09/12/2025',
-      name: 'Jose D Rodriguez',
-      provider: 'Abdel Jibawi',
-      hccCount: 6,
-      conditionsForAudit: 2,
-      radvCompleted: 0,
-      initialQualityScore: 1.20
-    },
-    {
-      chartId: 1012,
-      dos: '09/12/2025',
-      name: 'Vincent P Roscillo',
-      provider: 'Alex Anthony Tambrini',
-      hccCount: 6,
-      conditionsForAudit: 2,
-      radvCompleted: 0,
-      initialQualityScore: 1.07
-    },
-    {
-      chartId: 1006,
-      dos: '09/12/2025',
-      name: 'Mary K Carwell',
-      provider: 'PS-James Craig',
-      hccCount: 16,
-      conditionsForAudit: 1,
-      radvCompleted: 0,
-      initialQualityScore: 1.04
-    },
-    {
-      chartId: 1002,
-      dos: '09/12/2025',
-      name: 'Yvonne S Holm',
-      provider: 'PS-Loida Buaquina',
-      hccCount: 16,
-      conditionsForAudit: 4,
-      radvCompleted: 0,
-      initialQualityScore: 1.13
-    },
-    {
-      chartId: 1003,
-      dos: '09/10/2025',
-      name: 'Roger C Oneil',
-      provider: 'PS-Loida Buaquina',
-      hccCount: 7,
-      conditionsForAudit: 2,
-      radvCompleted: 0,
-      initialQualityScore: 1.21
-    },
-    {
-      chartId: 1005,
-      dos: '09/10/2025',
-      name: 'Cheryl Jenkins',
-      provider: 'PS-John Ameen',
-      hccCount: 8,
-      conditionsForAudit: 3,
-      radvCompleted: 2,
-      initialQualityScore: 1.21
-    },
-    {
-      chartId: 1015,
-      dos: '09/10/2025',
-      name: 'William Schlossnagle',
-      provider: 'PS-James Craig',
-      hccCount: 3,
-      conditionsForAudit: 1,
-      radvCompleted: 0,
-      initialQualityScore: 1.25
-    },
-    {
-      chartId: 1005,
-      dos: '09/10/2025',
-      name: 'Cheryl Jenkins',
-      provider: 'PS-John Ameen',
-      hccCount: 15,
-      conditionsForAudit: 1,
-      radvCompleted: 0,
-      initialQualityScore: 1.04
-    },
-    {
-      chartId: 1003,
-      dos: '09/10/2025',
-      name: 'Roger C Oneil',
-      provider: 'PS-Loida Buaquina',
-      hccCount: 14,
-      conditionsForAudit: 2,
-      radvCompleted: 0,
-      initialQualityScore: 1.08
-    },
-    {
-      chartId: 1022,
-      dos: '09/10/2025',
-      name: 'Jackie Howe',
-      provider: 'Shaheen Pirani',
-      hccCount: 5,
-      conditionsForAudit: 5,
-      radvCompleted: 0,
-      initialQualityScore: 3.13
-    },
-    {
-      chartId: 1028,
-      dos: '09/10/2025',
-      name: 'Robert C Pellegrino',
-      provider: 'PS-John Ameen',
-      hccCount: 9,
-      conditionsForAudit: 2,
-      radvCompleted: 0,
-      initialQualityScore: 1.22
-    }
-  ];
 
-  // Condition Audit Table Data
+  // Add CSS styles with high specificity to avoid conflicts
   const conditionAuditData = [
     {
       id: 1,
@@ -500,107 +315,118 @@
     }
   ];
 
-  // Add CSS styles
+  // Add CSS styles with high specificity to avoid conflicts
   function addStyles() {
     const style = document.createElement('style');
+    style.id = 'caretracker-extension-styles';
     style.textContent = `
-      /* Reset and base styles */
-      * {
+      /* High specificity CSS to avoid website conflicts */
+      #caretracker-extension-styles {
+        all: initial;
+      }
+
+      /* Reset and base styles with high specificity */
+      #caretracker-extension-styles * {
         margin: 0;
         padding: 0;
         box-sizing: border-box;
       }
 
-      /* Rectangular Floating Button Container */
-      .floating-buttons {
-        position: fixed;
-        right: 0;
-        top: 50%;
-        transform: translateY(-50%);
-        z-index: 10000;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        background: #007bff;
-        border-radius: 12px 0 0 12px;
-        padding: 15px 8px 15px 15px;
-        box-shadow: -4px 0 12px rgba(0, 123, 255, 0.3);
-        transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      /* Rectangular Floating Button Container - High Specificity */
+      body .floating-buttons {
+        position: fixed !important;
+        right: 0 !important;
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+        z-index: 10000 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 8px !important;
+        background: #007bff !important;
+        border-radius: 12px 0 0 12px !important;
+        padding: 15px 8px 15px 15px !important;
+        box-shadow: -4px 0 12px rgba(0, 123, 255, 0.3) !important;
+        transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
+        font-family: Arial, sans-serif !important;
       }
 
-      .floating-buttons.shifted {
-        right: 70%;
+      body .floating-buttons.shifted {
+        right: 30% !important;
       }
 
-      .floating-icon-btn {
-        width: 45px;
-        height: 45px;
-        background: #fff;
-        color: #007bff;
-        border: none;
-        border-radius: 50%;
-        font-size: 20px;
-        cursor: pointer;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-        transition: all 0.3s ease;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        position: relative;
+      body .floating-icon-btn {
+        width: 45px !important;
+        height: 45px !important;
+        background: #fff !important;
+        color: #007bff !important;
+        border: none !important;
+        border-radius: 50% !important;
+        font-size: 20px !important;
+        cursor: pointer !important;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15) !important;
+        transition: all 0.3s ease !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        position: relative !important;
+        font-family: Arial, sans-serif !important;
+        text-decoration: none !important;
+        outline: none !important;
       }
 
-      .floating-icon-btn:hover {
-        transform: scale(1.05);
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      body .floating-icon-btn:hover {
+        transform: scale(1.05) !important;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2) !important;
       }
 
-      /* Enhanced Tooltip Design */
-      .floating-icon-btn::before {
-        content: attr(data-tooltip);
-        position: absolute;
-        right: 60px;
-        top: 50%;
-        transform: translateY(-50%);
-        background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
-        color: white;
-        padding: 8px 12px;
-        border-radius: 8px;
-        font-size: 12px;
-        font-weight: 600;
-        white-space: nowrap;
-        opacity: 0;
-        visibility: hidden;
-        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-        z-index: 10000;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+      /* Enhanced Tooltip Design - High Specificity */
+      body .floating-icon-btn::before {
+        content: attr(data-tooltip) !important;
+        position: absolute !important;
+        right: 60px !important;
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+        background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%) !important;
+        color: white !important;
+        padding: 8px 12px !important;
+        border-radius: 8px !important;
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        white-space: nowrap !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+        z-index: 10000 !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        font-family: Arial, sans-serif !important;
       }
 
-      .floating-icon-btn::after {
-        content: '';
-        position: absolute;
-        right: 52px;
-        top: 50%;
-        transform: translateY(-50%);
-        border: 6px solid transparent;
-        border-left-color: #2c3e50;
-        opacity: 0;
-        visibility: hidden;
-        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-        z-index: 10000;
+      body .floating-icon-btn::after {
+        content: '' !important;
+        position: absolute !important;
+        right: 52px !important;
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+        border: 6px solid transparent !important;
+        border-left-color: #2c3e50 !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+        z-index: 10000 !important;
       }
 
-      .floating-icon-btn:hover::before {
-        opacity: 1;
-        visibility: visible;
-        transform: translateY(-50%) translateX(-5px);
-        animation: tooltipPulse 2s infinite;
+      body .floating-icon-btn:hover::before {
+        opacity: 1 !important;
+        visibility: visible !important;
+        transform: translateY(-50%) translateX(-5px) !important;
+        animation: tooltipPulse 2s infinite !important;
       }
 
-      .floating-icon-btn:hover::after {
-        opacity: 1;
-        visibility: visible;
-        transform: translateY(-50%) translateX(-5px);
+      body .floating-icon-btn:hover::after {
+        opacity: 1 !important;
+        visibility: visible !important;
+        transform: translateY(-50%) translateX(-5px) !important;
       }
 
       @keyframes tooltipPulse {
@@ -621,20 +447,7 @@
         border-left-color: #28a745;
       }
 
-      .floating-icon-btn.audit-btn.active::before {
-        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-      }
-
-      .floating-icon-btn.audit-btn.active::after {
-        border-left-color: #28a745;
-      }
-
       .floating-icon-btn.chart-btn.active {
-        background: #28a745;
-        color: #fff;
-      }
-
-      .floating-icon-btn.audit-btn.active {
         background: #28a745;
         color: #fff;
       }
@@ -653,135 +466,136 @@
         color: #fff;
       }
 
-      /* Backdrop Overlay with animation */
-      .backdrop {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 9998;
-        opacity: 0;
-        visibility: hidden;
-        transition: opacity 0.3s ease, visibility 0.3s ease;
+      /* Backdrop Overlay with animation - High Specificity */
+      body .backdrop {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        background: rgba(0, 0, 0, 0.5) !important;
+        z-index: 9998 !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+        transition: opacity 0.3s ease, visibility 0.3s ease !important;
       }
 
-      .backdrop.visible {
-        opacity: 1;
-        visibility: visible;
+      body .backdrop.visible {
+        opacity: 1 !important;
+        visibility: visible !important;
       }
 
-      /* Floating Panel with Slide Animation */
-      #ct-chart-floating {
-        position: fixed;
-        top: 0;
-        right: 0;
-        width: 70%;
-        height: 100vh;
-        background: #f8f9fa;
-        box-shadow: -4px 0 12px rgba(0, 0, 0, 0.3);
-        z-index: 9999;
-        font-family: Arial, sans-serif;
-        font-size: 13px;
-        color: #333;
-        transform: translateX(100%);
-        transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
+      /* Floating Panel with Slide Animation - High Specificity */
+      body #ct-chart-floating {
+        position: fixed !important;
+        top: 0 !important;
+        right: 0 !important;
+        width: 30% !important;
+        height: 100vh !important;
+        background: #f8f9fa !important;
+        box-shadow: -4px 0 12px rgba(0, 0, 0, 0.3) !important;
+        z-index: 9999 !important;
+        font-family: Arial, sans-serif !important;
+        font-size: 13px !important;
+        color: #333 !important;
+        transform: translateX(100%) !important;
+        transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
+        display: flex !important;
+        flex-direction: column !important;
+        overflow: hidden !important;
       }
 
-      #ct-chart-floating.show {
-        transform: translateX(0);
+      body #ct-chart-floating.show {
+        transform: translateX(0) !important;
       }
 
-      #ct-chart-floating .chart-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 12px 20px;
-        background: #fff;
-        border-bottom: 1px solid #e0e0e0;
-        flex-shrink: 0;
+      body #ct-chart-floating .chart-header {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        padding: 12px 20px !important;
+        background: #fff !important;
+        border-bottom: 1px solid #e0e0e0 !important;
+        flex-shrink: 0 !important;
       }
 
-      #ct-chart-floating h3 {
-        margin: 0;
-        font-size: 18px;
-        color: #333;
-        font-weight: 600;
+      body #ct-chart-floating h3 {
+        margin: 0 !important;
+        font-size: 18px !important;
+        color: #333 !important;
+        font-weight: 600 !important;
       }
 
-      #ct-chart-floating .close-btn {
-        background: transparent;
-        color: #666;
-        border: none;
-        cursor: pointer;
-        padding: 4px 8px;
-        font-size: 24px;
-        transition: color 0.2s ease;
+      body #ct-chart-floating .close-btn {
+        background: transparent !important;
+        color: #666 !important;
+        border: none !important;
+        cursor: pointer !important;
+        padding: 4px 8px !important;
+        font-size: 24px !important;
+        transition: color 0.2s ease !important;
       }
 
-      #ct-chart-floating .close-btn:hover {
-        color: #333;
+      body #ct-chart-floating .close-btn:hover {
+        color: #333 !important;
       }
 
-      /* Medical Conditions Section */
-      .medical-conditions-section {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        background: #f8f9fa;
-        min-height: 0;
-        height: 100%;
+      /* Medical Conditions Section - High Specificity */
+      body .medical-conditions-section {
+        flex: 1 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        background: #f8f9fa !important;
+        min-height: 0 !important;
+        height: 100% !important;
       }
 
-      .medical-conditions-section > h4 {
-        padding: 15px 20px;
-        margin: 0;
-        background: #fff;
-        border-bottom: 1px solid #e0e0e0;
-        flex-shrink: 0;
+      body .medical-conditions-section > h4 {
+        padding: 15px 20px !important;
+        margin: 0 !important;
+        background: #fff !important;
+        border-bottom: 1px solid #e0e0e0 !important;
+        flex-shrink: 0 !important;
       }
 
-      /* Search Container */
-      .search-container {
-        padding: 10px 20px;
-        background: #fff;
-        border-bottom: 1px solid #e0e0e0;
-        flex-shrink: 0;
+      /* Search Container - High Specificity */
+      body .search-container {
+        padding: 10px 20px !important;
+        background: #fff !important;
+        border-bottom: 1px solid #e0e0e0 !important;
+        flex-shrink: 0 !important;
       }
 
-      .search-input {
-        width: 100%;
-        padding: 8px 12px;
-        border: 2px solid #e9ecef;
-        border-radius: 8px;
-        font-size: 14px;
-        background: #f8f9fa;
-        transition: all 0.3s ease;
-        box-sizing: border-box;
+      body .search-input {
+        width: 100% !important;
+        padding: 8px 12px !important;
+        border: 2px solid #e9ecef !important;
+        border-radius: 8px !important;
+        font-size: 14px !important;
+        background: #f8f9fa !important;
+        transition: all 0.3s ease !important;
+        box-sizing: border-box !important;
+        font-family: Arial, sans-serif !important;
       }
 
-      .search-input:focus {
-        outline: none;
-        border-color: #007bff;
-        background: #fff;
-        box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+      body .search-input:focus {
+        outline: none !important;
+        border-color: #007bff !important;
+        background: #fff !important;
+        box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1) !important;
       }
 
-      .search-input::placeholder {
-        color: #6c757d;
-        font-style: italic;
+      body .search-input::placeholder {
+        color: #6c757d !important;
+        font-style: italic !important;
       }
 
-      .search-results-count {
-        margin-top: 4px;
-        font-size: 12px;
-        color: #6c757d;
-        font-weight: 500;
-        text-align: right;
+      body .search-results-count {
+        margin-top: 4px !important;
+        font-size: 12px !important;
+        color: #6c757d !important;
+        font-weight: 500 !important;
+        text-align: right !important;
       }
 
       /* No Results UI */
@@ -845,15 +659,15 @@
       }
 
       .medical-conditions-scroll {
-        flex: 1;
-        overflow-y: auto;
-        padding: 15px;
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 15px;
-        min-height: 0;
-        height: 100%;
-        align-content: start;
+        flex: 1 !important;
+        overflow-y: auto !important;
+        padding: 15px !important;
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        gap: 15px !important;
+        min-height: 0 !important;
+        height: 100% !important;
+        align-content: start !important;
       }
 
       /* Custom Scrollbar for Medical Conditions */
@@ -880,143 +694,149 @@
         scrollbar-color: #888 #f1f1f1;
       }
 
-      /* Beautiful Medical Condition Card Design */
-      .medical-condition-card {
-        background: #ffffff;
-        border: 1px solid #e8e8e8;
-        border-left: 4px solid #28a745;
-        border-radius: 4px;
-        padding: 5px;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
-        height: fit-content;
-        transition: all 0.3s ease;
+      /* Beautiful Medical Condition Card Design - High Specificity */
+      body .medical-condition-card {
+        background: #ffffff !important;
+        border: 1px solid #e8e8e8 !important;
+        border-left: 4px solid #28a745 !important;
+        border-radius: 4px !important;
+        padding: 5px !important;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06) !important;
+        height: fit-content !important;
+        transition: all 0.3s ease !important;
+        font-family: Arial, sans-serif !important;
       }
 
-      .medical-condition-card:hover {
-        box-shadow: 0 3px 12px rgba(0, 0, 0, 0.1);
-        transform: translateY(-1px);
+      body .medical-condition-card:hover {
+        box-shadow: 0 3px 12px rgba(0, 0, 0, 0.1) !important;
+        transform: translateY(-1px) !important;
       }
 
       /* Badges Row */
-      .card-badges-row {
-        margin-bottom: 10px;
-        display: flex;
-        justify-content: space-between;
+      body .card-badges-row {
+        margin-bottom: 10px !important;
+        display: flex !important;
+        justify-content: space-between !important;
       }
 
-      .badge-group {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-        align-items: center;
+      body .badge-group {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 6px !important;
+        align-items: center !important;
       }
 
-      .icd-badge {
-        display: inline-block;
-        padding: 4px 8px;
-        background: #dbeafe;
-        color: #1e40af;
-        border: 1px solid #93c5fd;
-        border-radius: 2px;
-        font-size: 10px;
-        font-weight: 600;
-        font-family: 'Courier New', monospace;
+      body .icd-badge {
+        display: inline-block !important;
+        padding: 4px 8px !important;
+        background: #dbeafe !important;
+        color: #1e40af !important;
+        border: 1px solid #93c5fd !important;
+        border-radius: 2px !important;
+        font-size: 10px !important;
+        font-weight: 600 !important;
+        font-family: 'Courier New', monospace !important;
       }
 
-      .hcc-badge {
-        display: inline-block;
-        padding: 4px 8px;
-        background: #d1fae5;
-        color: #065f46;
-        border: 1px solid #6ee7b7;
-        border-radius: 2px;
-        font-size: 10px;
-        font-weight: 600;
-        font-family: 'Courier New', monospace;
+      body .hcc-badge {
+        display: inline-block !important;
+        padding: 4px 8px !important;
+        background: #d1fae5 !important;
+        color: #065f46 !important;
+        border: 1px solid #6ee7b7 !important;
+        border-radius: 2px !important;
+        font-size: 10px !important;
+        font-weight: 600 !important;
+        font-family: 'Courier New', monospace !important;
       }
 
-      .rx-hcc-badge {
-        display: inline-block;
-        padding: 4px 8px;
-        background: #f3e8ff;
-        color: #6b21a8;
-        border: 1px solid #c084fc;
-        border-radius: 2px;
-        font-size: 10px;
-        font-weight: 600;
-        font-family: 'Courier New', monospace;
+      body .rx-hcc-badge {
+        display: inline-block !important;
+        padding: 4px 8px !important;
+        background: #f3e8ff !important;
+        color: #6b21a8 !important;
+        border: 1px solid #c084fc !important;
+        border-radius: 2px !important;
+        font-size: 10px !important;
+        font-weight: 600 !important;
+        font-family: 'Courier New', monospace !important;
       }
 
-      .code-type-badge {
-        display: inline-block;
-        padding: 4px 8px;
-        border-radius: 2px;
-        font-size: 10px;
-        font-weight: 600;
-        font-family: 'Courier New', monospace;
+      body .code-type-badge {
+        display: inline-block !important;
+        padding: 4px 8px !important;
+        border-radius: 2px !important;
+        font-size: 10px !important;
+        font-weight: 600 !important;
+        font-family: 'Courier New', monospace !important;
       }
 
-      .code-type-badge.documented {
-        background: #d1fae5;
-        color: #065f46;
-        border: 1px solid #6ee7b7;
+      body .code-type-badge.documented {
+        background: #d1fae5 !important;
+        color: #065f46 !important;
+        border: 1px solid #6ee7b7 !important;
       }
 
-      .code-type-badge.opportunities {
-        background: #fed7aa;
-        color: #9a3412;
-        border: 1px solid #fdba74;
+      body .code-type-badge.opportunities {
+        background: #fed7aa !important;
+        color: #9a3412 !important;
+        border: 1px solid #fdba74 !important;
       }
 
-      .audit-score-icon {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        padding: 4px 8px;
-        background: #fee2e2;
-        color: #dc2626;
-        border: 1px solid #fca5a5;
-        border-radius: 2px;
-        font-size: 10px;
-        font-weight: 700;
-        font-family: 'Courier New', monospace;
-        cursor: pointer;
+      body .audit-score-icon {
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 4px !important;
+        padding: 4px 8px !important;
+        background: #fee2e2 !important;
+        color: #dc2626 !important;
+        border: 1px solid #fca5a5 !important;
+        border-radius: 2px !important;
+        font-size: 10px !important;
+        font-weight: 700 !important;
+        font-family: 'Courier New', monospace !important;
+        cursor: pointer !important;
       }
 
       /* Card Title */
-      .card-title {
-        font-size: 13px;
-        font-weight: 700;
-        color: #111827;
-        margin: 0 0 10px 0;
-        line-height: 1.3;
+      body .card-title {
+        font-size: 13px !important;
+        font-weight: 700 !important;
+        color: #111827 !important;
+        margin: 0 0 10px 0 !important;
+        line-height: 1.3 !important;
+        font-family: Arial, sans-serif !important;
       }
 
       /* Card Description Paragraph */
-      .card-description {
-        font-size: 11px;
-        color: #374151;
-        line-height: 1.5;
-        margin: 0 0 10px 0;
+      body .card-description {
+        font-size: 11px !important;
+        color: #374151 !important;
+        line-height: 1.5 !important;
+        margin: 0 0 10px 0 !important;
+        font-family: Arial, sans-serif !important;
       }
 
       /* Card Sections */
-      .card-info-row {
-        display: flex;
-        align-items: flex-start;
-        gap: 8px;
-        padding: 6px 0;
-        font-size: 11px;
-        color: #374151;
+      body .card-info-row {
+        display: flex !important;
+        align-items: flex-start !important;
+        gap: 8px !important;
+        padding: 6px 0 !important;
+        font-size: 11px !important;
+        color: #374151 !important;
+        font-family: Arial, sans-serif !important;
       }
 
-      .card-info-row .label {
-        font-weight: 600;
-        color: #6b7280;
+      body .card-info-row .label {
+        font-weight: 600 !important;
+        color: #6b7280 !important;
+        font-family: Arial, sans-serif !important;
       }
 
-      .card-info-row .value {
-        flex: 1;
+      body .card-info-row .value {
+        flex: 1 !important;
+        font-family: Arial, sans-serif !important;
       }
 
       /* Audit Table Section */
@@ -1214,10 +1034,10 @@
       .pagination-btn {
         padding: 8px 16px;
         border: 1px solid #d1d5db;
-        background: #fff;
+      background: #fff;
         color: #374151;
         border-radius: 6px;
-        font-size: 13px;
+      font-size: 13px;
         font-weight: 500;
         cursor: pointer;
         transition: all 0.2s ease;
@@ -1245,116 +1065,116 @@
 
       /* Responsive Design */
       @media (max-width: 1024px) {
-        #ct-chart-floating {
-          width: 85%;
+        body #ct-chart-floating {
+          width: 40% !important;
         }
 
-        .floating-buttons.shifted {
-          right: 85%;
+        body .floating-buttons.shifted {
+          right: 40% !important;
         }
       }
 
       @media (max-width: 768px) {
-        #ct-chart-floating {
-          width: 100%;
+        body #ct-chart-floating {
+          width: 100% !important;
         }
 
-        .floating-buttons {
-          right: 0;
-          padding: 12px 6px 12px 12px;
+        body .floating-buttons {
+          right: 0 !important;
+          padding: 12px 6px 12px 12px !important;
         }
 
-        .floating-buttons.shifted {
-          right: 0;
+        body .floating-buttons.shifted {
+          right: 0 !important;
         }
 
-        .floating-icon-btn {
-          width: 40px;
-          height: 40px;
-          font-size: 18px;
+        body .floating-icon-btn {
+          width: 40px !important;
+          height: 40px !important;
+          font-size: 18px !important;
         }
 
         .medical-conditions-scroll {
-          grid-template-columns: 1fr;
+          grid-template-columns: 1fr !important;
         }
 
         .card-info-row {
-          flex-direction: column;
-          gap: 4px;
+          flex-direction: column !important;
+          gap: 4px !important;
         }
 
         .card-info-row .label {
-          min-width: auto;
+          min-width: auto !important;
         }
 
         .pagination-wrapper {
-          flex-direction: column;
-          align-items: center;
+          flex-direction: column !important;
+          align-items: center !important;
         }
 
         .pagination {
-          justify-content: center;
+          justify-content: center !important;
         }
       }
 
       @media (max-width: 480px) {
-        .floating-buttons {
-          padding: 10px 4px 10px 10px;
+        body .floating-buttons {
+          padding: 10px 4px 10px 10px !important;
         }
 
-        .floating-icon-btn {
-          width: 35px;
-          height: 35px;
-          font-size: 16px;
+        body .floating-icon-btn {
+          width: 35px !important;
+          height: 35px !important;
+          font-size: 16px !important;
         }
 
         .medical-condition-card {
-          padding: 10px;
+          padding: 10px !important;
         }
 
         .card-title {
-          font-size: 12px;
+          font-size: 12px !important;
         }
 
         .card-description,
         .card-info-row {
-          font-size: 10px;
+          font-size: 10px !important;
         }
 
         .badge-group {
-          gap: 4px;
+          gap: 4px !important;
         }
 
         .icd-badge,
         .hcc-badge,
         .rx-hcc-badge {
-          font-size: 9px;
-          padding: 3px 6px;
+          font-size: 9px !important;
+          padding: 3px 6px !important;
         }
 
         .pagination-wrapper {
-          padding: 15px;
+          padding: 15px !important;
         }
 
         .pagination-info {
-          font-size: 11px;
+          font-size: 11px !important;
         }
 
         .pagination-btn {
-          padding: 6px 12px;
-          font-size: 11px;
+          padding: 6px 12px !important;
+          font-size: 11px !important;
         }
 
         /* Mobile tooltip adjustments */
-        .floating-icon-btn::before {
-          right: 50px;
-          font-size: 11px;
-          padding: 6px 10px;
+        body .floating-icon-btn::before {
+          right: 50px !important;
+          font-size: 11px !important;
+          padding: 6px 10px !important;
         }
 
-        .floating-icon-btn::after {
-          right: 42px;
-          border-width: 5px;
+        body .floating-icon-btn::after {
+          right: 42px !important;
+          border-width: 5px !important;
         }
       }
     `;
@@ -1405,39 +1225,6 @@
     });
   }
 
-  // Check if search bar should be shown (more than 6 conditions)
-  const showSearchBar = medicalConditionsData.length > 6;
-
-  // Filter audit table data based on search term
-  function filterAuditData() {
-    const trimmedSearch = auditSearchTerm.trim();
-    if (!trimmedSearch) {
-      return auditTableData;
-    }
-
-    const searchLower = trimmedSearch.toLowerCase();
-    return auditTableData.filter(row => {
-      return (
-        // Chart ID
-        row.chartId.toString().includes(searchLower) ||
-        // DOS (Date of Service)
-        row.dos.toLowerCase().includes(searchLower) ||
-        // Name
-        row.name.toLowerCase().includes(searchLower) ||
-        // Provider
-        row.provider.toLowerCase().includes(searchLower) ||
-        // HCC Count
-        row.hccCount.toString().includes(searchLower) ||
-        // Conditions for Audit
-        row.conditionsForAudit.toString().includes(searchLower) ||
-        // RADV Completed
-        row.radvCompleted.toString().includes(searchLower) ||
-        // Initial Quality Score
-        row.initialQualityScore.toString().includes(searchLower)
-      );
-    });
-  }
-
   // Filter condition audit data based on search term
   function filterConditionAuditData() {
     const trimmedSearch = conditionAuditSearchTerm.trim();
@@ -1467,17 +1254,6 @@
   }
 
   // Helper function to render sort icons with 3-stage support
-  function renderSortIcon(columnKey) {
-    if (sortConfig.key === columnKey) {
-      if (sortConfig.direction === 'asc') {
-        return `<svg class="sort-icon active" viewBox="0 0 100 100"><polygon points="50,20 80,60 20,60" fill="currentColor"/></svg>`;
-      } else if (sortConfig.direction === 'desc') {
-        return `<svg class="sort-icon active" viewBox="0 0 100 100"><polygon points="20,20 80,20 50,60" fill="currentColor"/></svg>`;
-      }
-    }
-    return '';
-  }
-
   function renderConditionAuditSortIcon(columnKey) {
     if (conditionAuditSortConfig.key === columnKey) {
       if (conditionAuditSortConfig.direction === 'asc') {
@@ -1490,28 +1266,8 @@
   }
 
   // Sort audit data
-  function sortAuditData(key) {
-    currentPage = 1;
-    let direction;
-    if (sortConfig.key === key) {
-      if (sortConfig.direction === 'asc') {
-        direction = 'desc';
-      } else if (sortConfig.direction === 'desc') {
-        direction = null; // Reset
-        sortConfig = { key: null, direction: null };
-        showAuditContent();
-        return;
-      }
-    } else {
-      direction = 'asc';
-    }
-    sortConfig = { key, direction };
-    showAuditContent();
-  }
-
   // Sort condition audit data
   function sortConditionAuditData(key) {
-    currentPage = 1;
     let direction;
     if (conditionAuditSortConfig.key === key) {
       if (conditionAuditSortConfig.direction === 'asc') {
@@ -1529,16 +1285,6 @@
     showConditionAuditContent();
   }
 
-  function paginateData(data) {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return data.slice(startIndex, startIndex + itemsPerPage);
-  }
-
-  function changePage(page) {
-    currentPage = page;
-    showAuditContent();
-  }
-
   // Create floating buttons
   function createFloatingButtons() {
     const existing = document.getElementById('floatingButtons');
@@ -1547,25 +1293,64 @@
     const buttonsDiv = document.createElement('div');
     buttonsDiv.id = 'floatingButtons';
     buttonsDiv.className = 'floating-buttons';
-
-    buttonsDiv.innerHTML = `
-      <button class="floating-icon-btn chart-btn" id="chartBtn" data-tooltip="Chart Details">
-        📊
-      </button>
-      <button class="floating-icon-btn audit-btn" id="auditBtn" data-tooltip="Audit Details Table">
-        📋
-      </button>
-      <button class="floating-icon-btn condition-audit-btn" id="conditionAuditBtn" data-tooltip="Audit Details Table">
-        📝
-      </button>
+    buttonsDiv.style.cssText = `
+      position: fixed !important;
+      right: 0 !important;
+      top: 50% !important;
+      transform: translateY(-50%) !important;
+      z-index: 10000 !important;
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 8px !important;
+      background: #007bff !important;
+      border-radius: 12px 0 0 12px !important;
+      padding: 15px 8px 15px 15px !important;
+      box-shadow: -4px 0 12px rgba(0, 123, 255, 0.3) !important;
+      transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
+      font-family: Arial, sans-serif !important;
     `;
+
+    // Create buttons individually to ensure innerHTML works
+    const chartBtn = document.createElement('button');
+    chartBtn.id = 'chartBtn';
+    chartBtn.className = 'floating-icon-btn chart-btn';
+    chartBtn.setAttribute('data-tooltip', 'Chart Details');
+    chartBtn.style.cssText = `
+      width: 45px !important;
+      height: 45px !important;
+      background: #fff !important;
+      color: #007bff !important;
+      border: none !important;
+      border-radius: 50% !important;
+      font-size: 20px !important;
+      cursor: pointer !important;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15) !important;
+      transition: all 0.3s ease !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      position: relative !important;
+      font-family: Arial, sans-serif !important;
+      text-decoration: none !important;
+      outline: none !important;
+    `;
+    chartBtn.textContent = '📊';
+
+    const conditionAuditBtn = document.createElement('button');
+    conditionAuditBtn.id = 'conditionAuditBtn';
+    conditionAuditBtn.className = 'floating-icon-btn condition-audit-btn';
+    conditionAuditBtn.setAttribute('data-tooltip', 'Audit Details Table');
+    conditionAuditBtn.style.cssText = chartBtn.style.cssText;
+    conditionAuditBtn.textContent = '📝';
+
+    buttonsDiv.appendChild(chartBtn);
+    buttonsDiv.appendChild(conditionAuditBtn);
 
     document.body.appendChild(buttonsDiv);
 
     // Add event listeners
-    document.getElementById('chartBtn').addEventListener('click', showChartDetails);
-    document.getElementById('auditBtn').addEventListener('click', showAuditTable);
-    document.getElementById('conditionAuditBtn').addEventListener('click', showConditionAuditTable);
+    chartBtn.addEventListener('click', showChartDetails);
+    conditionAuditBtn.addEventListener('click', showConditionAuditTable);
 
     return buttonsDiv;
   }
@@ -1583,7 +1368,7 @@
     return backdrop;
   }
 
-  // Create floating panel
+  // Create floating panel with high specificity CSS
   function createFloatingPanel() {
     const existing = document.getElementById(FLOATING_DIV_ID);
     if (existing) return existing;
@@ -1591,18 +1376,72 @@
     const div = document.createElement('div');
     div.id = FLOATING_DIV_ID;
     div.className = 'hidden';
-
-    div.innerHTML = `
-      <div class="chart-header">
-        <h3 id="chartTitle">Chart Details - John Doe</h3>
-        <button class="close-btn" id="closeChartDiv">✕</button>
-      </div>
-      <div id="chartContent"></div>
+    div.style.cssText = `
+      position: fixed !important;
+      top: 0 !important;
+      right: 0 !important;
+      width: 30% !important;
+      height: 100vh !important;
+      background: #f8f9fa !important;
+      box-shadow: -4px 0 12px rgba(0, 0, 0, 0.3) !important;
+      z-index: 9999 !important;
+      font-family: Arial, sans-serif !important;
+      font-size: 13px !important;
+      color: #333 !important;
+      transform: translateX(100%) !important;
+      transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
+      display: flex !important;
+      flex-direction: column !important;
+      overflow: hidden !important;
     `;
+
+    const header = document.createElement('div');
+    header.className = 'chart-header';
+    header.style.cssText = `
+      display: flex !important;
+      justify-content: space-between !important;
+      align-items: center !important;
+      padding: 12px 20px !important;
+      background: #fff !important;
+      border-bottom: 1px solid #e0e0e0 !important;
+      flex-shrink: 0 !important;
+    `;
+
+    const title = document.createElement('h3');
+    title.id = 'chartTitle';
+    title.textContent = 'Chart Details - John Doe';
+    title.style.cssText = `
+      margin: 0 !important;
+      font-size: 18px !important;
+      color: #333 !important;
+      font-weight: 600 !important;
+    `;
+
+    const closeBtn = document.createElement('button');
+    closeBtn.id = 'closeChartDiv';
+    closeBtn.className = 'close-btn';
+    closeBtn.textContent = '✕';
+    closeBtn.style.cssText = `
+      background: transparent !important;
+      color: #666 !important;
+      border: none !important;
+      cursor: pointer !important;
+      padding: 4px 8px !important;
+      font-size: 24px !important;
+      transition: color 0.2s ease !important;
+    `;
+
+    const content = document.createElement('div');
+    content.id = 'chartContent';
+
+    header.appendChild(title);
+    header.appendChild(closeBtn);
+    div.appendChild(header);
+    div.appendChild(content);
 
     document.body.appendChild(div);
 
-    document.getElementById('closeChartDiv').addEventListener('click', closePanel);
+    closeBtn.addEventListener('click', closePanel);
     return div;
   }
 
@@ -1611,55 +1450,39 @@
     const backdrop = document.getElementById('backdrop');
     const floatingButtons = document.getElementById('floatingButtons');
     const chartBtn = document.getElementById('chartBtn');
-    const auditBtn = document.getElementById('auditBtn');
     const conditionAuditBtn = document.getElementById('conditionAuditBtn');
 
-    div.classList.remove('hidden');
-    setTimeout(() => div.classList.add('show'), 10);
-    backdrop.classList.add('visible');
-    floatingButtons.classList.add('shifted');
+    if (div && backdrop && floatingButtons) {
+      div.classList.remove('hidden');
+      div.style.transform = 'translateX(0) !important';
+      backdrop.classList.add('visible');
+      floatingButtons.classList.add('shifted');
+      floatingButtons.style.right = '30% !important';
+    }
 
     contentType = type;
 
     if (type === 'chart') {
       chartBtn.classList.add('active');
-      auditBtn.classList.remove('active');
       if (conditionAuditBtn) {
         conditionAuditBtn.classList.remove('active');
         conditionAuditBtn.setAttribute('data-tooltip', 'Audit Details Table');
       }
       chartBtn.setAttribute('data-tooltip', 'Active - Chart Details');
-      auditBtn.setAttribute('data-tooltip', 'Audit Details Table');
       document.getElementById('chartTitle').textContent = 'Chart Details - John Doe';
       showChartContent();
-    } else if (type === 'audit') {
-      auditBtn.classList.add('active');
-      chartBtn.classList.remove('active');
-      if (conditionAuditBtn) {
-        conditionAuditBtn.classList.remove('active');
-        conditionAuditBtn.setAttribute('data-tooltip', 'Audit Details Table');
-      }
-      chartBtn.setAttribute('data-tooltip', 'Chart Details');
-      auditBtn.setAttribute('data-tooltip', 'Active - Audit Details Table');
-      document.getElementById('chartTitle').textContent = 'Audit Details Table';
-      showAuditContent();
     } else if (type === 'conditionAudit') {
       if (conditionAuditBtn) {
         conditionAuditBtn.classList.add('active');
         conditionAuditBtn.setAttribute('data-tooltip', 'Active - Audit Details Table');
       }
       chartBtn.classList.remove('active');
-      auditBtn.classList.remove('active');
       chartBtn.setAttribute('data-tooltip', 'Chart Details');
-      auditBtn.setAttribute('data-tooltip', 'Audit Details Table');
       document.getElementById('chartTitle').textContent = 'Audit Details Table';
       showConditionAuditContent();
     }
   }
 
-  function showAuditTable() {
-    showPanel('audit');
-  }
 
   function showChartDetails() {
     showPanel('chart');
@@ -1674,160 +1497,96 @@
     const backdrop = document.getElementById('backdrop');
     const floatingButtons = document.getElementById('floatingButtons');
     const chartBtn = document.getElementById('chartBtn');
-    const auditBtn = document.getElementById('auditBtn');
     const conditionAuditBtn = document.getElementById('conditionAuditBtn');
 
-    div.classList.remove('show');
+    div.classList.add('hidden');
+    div.style.transform = 'translateX(100%) !important';
     backdrop.classList.remove('visible');
     floatingButtons.classList.remove('shifted');
+    floatingButtons.style.right = '0 !important';
     chartBtn.classList.remove('active');
-    auditBtn.classList.remove('active');
     if (conditionAuditBtn) {
       conditionAuditBtn.classList.remove('active');
       conditionAuditBtn.setAttribute('data-tooltip', 'Audit Details Table');
     }
     chartBtn.setAttribute('data-tooltip', 'Chart Details');
-    auditBtn.setAttribute('data-tooltip', 'Audit Details Table');
 
     setTimeout(() => div.classList.add('hidden'), 400);
   }
 
   function showChartContent() {
-    // Check if content already exists
-    let chartContent = document.getElementById('chartContent');
-    let medicalSection = chartContent.querySelector('.medical-conditions-section');
-
-    if (!medicalSection) {
-      // First time - create the structure
-      const searchBarHTML = showSearchBar
-        ? `
-        <div class="search-container">
-          <input
-            type="text"
-            placeholder="Search conditions, ICD codes, HCC codes, status..."
-            value="${searchTerm}"
-            oninput="handleSearch(this.value)"
-            class="search-input"
-          />
-          <div class="search-results-count">
-            ${medicalConditionsData.length} of ${medicalConditionsData.length} conditions
-          </div>
-        </div>
-      `
-        : '';
-
-      chartContent.innerHTML = `
-        <div class="medical-conditions-section">
-          <h4>Medical Conditions</h4>
-          ${searchBarHTML}
-          <div class="medical-conditions-scroll">
-          </div>
-        </div>
-      `;
-    }
-
-    // Update the content
-    updateChartContent();
-  }
-
-  function updateChartContent() {
+    const chartContent = document.getElementById('chartContent');
+    const showSearchBar = medicalConditionsData.length > 6;
     const filteredConditions = filterMedicalConditions();
-    const scrollContainer = document.querySelector('.medical-conditions-scroll');
-    const resultsCount = document.querySelector('.search-results-count');
 
-    if (filteredConditions.length === 0 && searchTerm.trim()) {
-      // Show no results UI
-      scrollContainer.innerHTML = `
-        <div class="no-results">
-          <div class="no-results-icon">🔍</div>
-          <h3>No conditions found</h3>
-          <p>No medical conditions match your search for "<strong>${searchTerm}</strong>"</p>
-          <div class="no-results-suggestions">
-            <p><strong>Try searching for:</strong></p>
-            <ul>
-              <li>ICD codes (e.g., "E11.22", "N18.31")</li>
-              <li>HCC codes (e.g., "37", "329")</li>
-              <li>Status (e.g., "active", "inactive")</li>
-              <li>Condition names (e.g., "diabetes", "kidney")</li>
-            </ul>
-          </div>
+    const searchBarHTML = showSearchBar
+      ? `
+      <div class="search-container">
+        <input
+          type="text"
+          placeholder="Search conditions, ICD codes, HCC codes, status..."
+          value="${searchTerm}"
+          oninput="handleSearch(this.value)"
+          class="search-input"
+        />
+        <div class="search-results-count">
+          ${filteredConditions.length} of ${medicalConditionsData.length} conditions
         </div>
-      `;
-    } else {
-      // Show filtered conditions
-      const conditionsHTML = filteredConditions
-        .map(condition => {
-          const RADV_score = condition.details.RADV_score || 0;
-          const code_status = condition.details.code_status || '';
-          const rxHcc = condition.details.rxHcc;
-          const hcc28 = condition.details.hcc28;
-          const isRADV = (code_status === "DOCUMENTED" && (RADV_score > 0 && RADV_score < 4) && (rxHcc?.length > 0 || hcc28?.length > 0));
-          
-          return `
-        <div class="medical-condition-card" style="${isRADV ? 'border-left: 4px solid #dc2626;' : ''}">
-          <!-- Badges Row -->
-          <div class="card-badges-row">
-            <div class="badge-group">
-              <span class="icd-badge">ICD-10: ${condition.details.icd10}</span>
-              ${condition.details.hcc28?.length > 0
-                ? `<span class="hcc-badge">HCC-28: ${condition.details.hcc28}</span>`
-                : ""
-              }
-              ${condition.details.rxHcc
-                ? `<span class="rx-hcc-badge">Rx-HCC: ${condition.details.rxHcc}</span>`
-                : ""
-              }
+      </div>
+    `
+      : '';
+
+    chartContent.innerHTML = `
+      <div class="medical-conditions-section">
+        <h4>Medical Conditions</h4>
+        ${searchBarHTML}
+        <div class="medical-conditions-scroll">
+          ${filteredConditions.length === 0 && searchTerm.trim() ? `
+            <div style="text-align: center; padding: 40px 20px; height: 60px; font-size: 14px; color: #6c757d; font-style: italic; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;">
+              <div style="font-size: 24px;">🔍</div>
+              <div>No conditions found</div>
+              <div style="font-size: 12px; color: #9ca3af;">No conditions match your search for "<strong>${searchTerm}</strong>"</div>
             </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              ${condition.details.code_type
-                ? `<span class="code-type-badge ${condition.details.code_type.toLowerCase()}">${condition.details.code_type}</span>`
-                : ""
-              }
-              ${isRADV
-                ? `<span class="audit-score-icon">Audit: ${RADV_score}</span>`
-                : ""
-              }
+          ` : filteredConditions.map((condition) => {
+      const RADV_score = condition.details.RADV_score || 0;
+      const code_status = condition.details.code_status || '';
+      const rxHcc = condition.details.rxHcc;
+      const hcc28 = condition.details.hcc28;
+      const isRADV = (code_status === "DOCUMENTED" && (RADV_score > 0 && RADV_score < 4) && (rxHcc?.length > 0 || hcc28?.length > 0));
+
+      return `
+            <div class="medical-condition-card" style="${isRADV ? 'border-left: 4px solid #dc2626; border-top: 1px solid #dc2626; border-right: 1px solid #dc2626; border-bottom: 1px solid #dc2626' : ''}">
+              <div class="card-badges-row">
+                <div class="badge-group">
+                  <span class="icd-badge">ICD-10: ${condition.details.icd10}</span>
+                  ${condition.details.hcc28 ? `<span class="hcc-badge">HCC-28: ${condition.details.hcc28}</span>` : ''}
+                  ${condition.details.rxHcc ? `<span class="rx-hcc-badge">Rx-HCC: ${condition.details.rxHcc}</span>` : ''}
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  ${condition.details.code_type ? `<span class="code-type-badge ${condition.details.code_type.toLowerCase()}">${condition.details.code_type}</span>` : ''}
+                  ${isRADV ? `<span class="audit-score-icon">Audit: ${RADV_score}</span>` : ''}
+                </div>
+              </div>
+              <h5 class="card-title" style="${isRADV ? 'color: #dc2626' : ''}">${condition.title}</h5>
+              <p class="card-description">${condition.description || 'No description available'}</p>
+              <div class="card-info-row">
+                <span class="label">Clinical Indicators:</span>
+                <span class="value">${condition.clinicalIndicators}</span>
+              </div>
+              <div class="card-info-row">
+                <span class="label">Code Explanation:</span>
+                <span class="value">${condition.codeExplanation}</span>
+              </div>
+              <div class="card-info-row">
+                <span class="label">Note:</span>
+                <span class="value">${condition.noteText || 'Not available'}</span>
+              </div>
             </div>
-          </div>
-
-          <!-- Title -->
-          <h5 class="card-title">${condition.title}</h5>
-
-          <!-- Description Paragraph -->
-          ${condition.description
-            ? `<p class="card-description">${condition.description}</p>`
-            : '<p class="card-description" style="font-style: italic; color: #9ca3af;">No description available</p>'
-          }
-
-          <!-- Clinical Indicators -->
-          <div class="card-info-row">
-            <span class="label">Clinical Indicators:</span>
-            <span class="value">${condition.clinicalIndicators}</span>
-          </div>
-
-          <!-- Code Explanation -->
-          <div class="card-info-row">
-            <span class="label">Code Explanation:</span>
-            <span class="value">${condition.codeExplanation}</span>
-          </div>
-
-          <!-- Note Section -->
-          <div class="card-info-row">
-            <span class="label">Note:</span>
-            <span class="value">${condition.noteText || 'Not available'}</span>
-          </div>
+            `;
+    }).join('')}
         </div>
-      `;
-        })
-        .join('');
-
-      scrollContainer.innerHTML = conditionsHTML;
-    }
-
-    // Update results count
-    if (resultsCount) {
-      resultsCount.textContent = `${filteredConditions.length} of ${medicalConditionsData.length} conditions`;
-    }
+      </div>
+    `;
   }
 
   function handleSearch(value) {
@@ -1835,25 +1594,7 @@
     if (contentType === 'chart') {
       const input = document.querySelector('.search-input');
       const isFocused = document.activeElement === input;
-      updateChartContent();
-      // Refocus the input if it was focused before
-      setTimeout(() => {
-        const newInput = document.querySelector('.search-input');
-        if (newInput && isFocused) {
-          newInput.focus();
-          // Restore cursor position
-          newInput.setSelectionRange(value.length, value.length);
-        }
-      }, 0);
-    }
-  }
-
-  function handleAuditSearch(value) {
-    auditSearchTerm = value;
-    if (contentType === 'audit') {
-      const input = document.querySelector('.search-input');
-      const isFocused = document.activeElement === input;
-      showAuditContent();
+      showChartContent();
       // Refocus the input if it was focused before
       setTimeout(() => {
         const newInput = document.querySelector('.search-input');
@@ -1884,118 +1625,6 @@
     }
   }
 
-  function showAuditContent() {
-    // Filter data first
-    let filteredData = filterAuditData();
-    // Sort data if needed
-    let sortedData = [...filteredData];
-    if (sortConfig.key) {
-      sortedData.sort((a, b) => {
-        if (['chartId', 'hccCount', 'conditionsForAudit', 'radvCompleted'].includes(sortConfig.key)) {
-          return sortConfig.direction === 'asc' ? a[sortConfig.key] - b[sortConfig.key] : b[sortConfig.key] - a[sortConfig.key];
-        }
-        if (sortConfig.key === 'initialQualityScore') {
-          return sortConfig.direction === 'asc' ? parseFloat(a[sortConfig.key]) - parseFloat(b[sortConfig.key]) : parseFloat(b[sortConfig.key]) - parseFloat(a[sortConfig.key]);
-        }
-        const aVal = String(a[sortConfig.key]).toLowerCase();
-        const bVal = String(b[sortConfig.key]).toLowerCase();
-        return sortConfig.direction === 'asc' ? aVal < bVal ? -1 : aVal > bVal ? 1 : 0 : aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
-      });
-    }
-
-    // Paginate
-    const paginatedData = paginateData(sortedData);
-    const totalPages = Math.ceil(sortedData.length / itemsPerPage);
-
-    const chartContent = document.getElementById('chartContent');
-    chartContent.innerHTML = `
-      <div class="audit-table-container">
-        <!-- Audit Details Table Search -->
-        <div class="search-container">
-          <input
-            type="text"
-            placeholder="Search audit data by chart ID, name, provider, dates..."
-            value="${auditSearchTerm}"
-            oninput="handleAuditSearch(this.value)"
-            class="search-input"
-          />
-          <div class="search-results-count">
-            ${filteredData.length} of ${auditTableData.length} entries
-          </div>
-        </div>
-        <div class="audit-table-wrapper">
-          <table class="audit-table">
-            <thead>
-              <tr>
-                <th onclick="sortAuditData('chartId')" class="sortable">
-                  <span>Chart Id</span> ${renderSortIcon('chartId')}
-                </th>
-                <th onclick="sortAuditData('dos')" class="sortable">
-                  <span>DOS</span> ${renderSortIcon('dos')}
-                </th>
-                <th onclick="sortAuditData('name')" class="sortable">
-                  <span>Name</span> ${renderSortIcon('name')}
-                </th>
-                <th onclick="sortAuditData('provider')" class="sortable">
-                  <span>Provider</span> ${renderSortIcon('provider')}
-                </th>
-                <th onclick="sortAuditData('hccCount')" class="sortable">
-                  <span>HCC Count</span> ${renderSortIcon('hccCount')}
-                </th>
-                <th onclick="sortAuditData('conditionsForAudit')" class="sortable">
-                  <span>Conditions for Audit</span> ${renderSortIcon('conditionsForAudit')}
-                </th>
-                <th onclick="sortAuditData('radvCompleted')" class="sortable">
-                  <span>RADV Completed</span> ${renderSortIcon('radvCompleted')}
-                </th>
-                <th onclick="sortAuditData('initialQualityScore')" class="sortable">
-                  <span>Initial Quality Score</span> ${renderSortIcon('initialQualityScore')}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              ${paginatedData
-                .map(row => `
-                  <tr>
-                    <td>${row.chartId}</td>
-                    <td>${row.dos}</td>
-                    <td>${row.name}</td>
-                    <td>${row.provider}</td>
-                    <td>${row.hccCount}</td>
-                    <td>${row.conditionsForAudit}</td>
-                    <td>${row.radvCompleted}</td>
-                    <td>${row.initialQualityScore}</td>
-                  </tr>
-                `)
-                .join('')}
-            </tbody>
-          </table>
-        </div>
-        ${totalPages > 1
-          ? `
-        <div class="pagination-wrapper">
-          <div class="pagination-info">
-            Showing ${(currentPage - 1) * itemsPerPage + 1} to ${Math.min(currentPage * itemsPerPage, sortedData.length)} of ${sortedData.length} entries
-          </div>
-          <div class="pagination">
-            <button onclick="changePage(currentPage - 1)" class="pagination-btn" ${currentPage === 1 ? 'disabled' : ''}>
-              Previous
-            </button>
-            ${Array.from({ length: totalPages }, (_, i) => {
-              const page = i + 1;
-              return `<button onclick="changePage(${page})" class="pagination-btn ${currentPage === page ? 'active' : ''}">${page}</button>`;
-            }).join('')}
-            <button onclick="changePage(currentPage + 1)" class="pagination-btn" ${currentPage === totalPages ? 'disabled' : ''}>
-              Next
-            </button>
-          </div>
-        </div>
-        `
-          : ''
-        }
-      </div>
-    `;
-  }
 
   function showConditionAuditContent() {
     // Filter data first
@@ -2016,7 +1645,6 @@
     const chartContent = document.getElementById('chartContent');
     chartContent.innerHTML = `
       <div class="audit-table-container">
-        <!-- Condition Audit Table Search -->
         <div class="search-container">
           <input
             type="text"
@@ -2030,35 +1658,41 @@
           </div>
         </div>
         <div class="audit-table-wrapper">
-          <table class="audit-table">
-            <thead>
-              <tr>
-                <th onclick="sortConditionAuditData('conditionName')" class="sortable">
-                  <span>Condition Name</span> ${renderConditionAuditSortIcon('conditionName')}
-                </th>
-                <th onclick="sortConditionAuditData('accurateCode')" class="sortable">
-                  <span>Accurate Code</span> ${renderConditionAuditSortIcon('accurateCode')}
-                </th>
-                <th class="sortable" style="cursor: default;">
-                  <span>Progress notes</span>
-                </th>
-                <th onclick="sortConditionAuditData('hccCode')" class="sortable">
-                  <span>HCC Code</span> ${renderConditionAuditSortIcon('hccCode')}
-                </th>
-                <th onclick="sortConditionAuditData('evidenceStrength')" class="sortable">
-                  <span>Evidence Strength</span> ${renderConditionAuditSortIcon('evidenceStrength')}
-                </th>
-                <th onclick="sortConditionAuditData('auditDate')" class="sortable">
-                  <span>Audit Date</span> ${renderConditionAuditSortIcon('auditDate')}
-                </th>
-                <th onclick="sortConditionAuditData('auditScore')" class="sortable">
-                  <span>Audit Score</span> ${renderConditionAuditSortIcon('auditScore')}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              ${sortedData
-                .map(row => `
+          ${sortedData.length === 0 && conditionAuditSearchTerm.trim() ? `
+            <div style="text-align: center; padding: 40px 20px; height: 60px; font-size: 14px; color: #6c757d; font-style: italic; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;">
+              <div style="font-size: 24px;">🔍</div>
+              <div>No audit records found</div>
+              <div style="font-size: 12px; color: #9ca3af;">No records match your search for "<strong>${conditionAuditSearchTerm}</strong>"</div>
+            </div>
+          ` : `
+            <table class="audit-table">
+              <thead>
+                <tr>
+                  <th onclick="sortConditionAuditData('conditionName')" class="sortable">
+                    <span>Condition Name</span> ${renderConditionAuditSortIcon('conditionName')}
+                  </th>
+                  <th onclick="sortConditionAuditData('accurateCode')" class="sortable">
+                    <span>Accurate Code</span> ${renderConditionAuditSortIcon('accurateCode')}
+                  </th>
+                  <th class="sortable" style="cursor: default;">
+                    <span>Progress notes</span>
+                  </th>
+                  <th onclick="sortConditionAuditData('hccCode')" class="sortable">
+                    <span>HCC Code</span> ${renderConditionAuditSortIcon('hccCode')}
+                  </th>
+                  <th onclick="sortConditionAuditData('evidenceStrength')" class="sortable">
+                    <span>Evidence Strength</span> ${renderConditionAuditSortIcon('evidenceStrength')}
+                  </th>
+                  <th onclick="sortConditionAuditData('auditDate')" class="sortable">
+                    <span>Audit Date</span> ${renderConditionAuditSortIcon('auditDate')}
+                  </th>
+                  <th onclick="sortConditionAuditData('auditScore')" class="sortable">
+                    <span>Audit Score</span> ${renderConditionAuditSortIcon('auditScore')}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                ${sortedData.map(row => `
                   <tr>
                     <td>${row.conditionName}</td>
                     <td>${row.accurateCode}</td>
@@ -2078,10 +1712,10 @@
                     <td>${row.auditDate || ''}</td>
                     <td>${row.auditScore}</td>
                   </tr>
-                `)
-                .join('')}
-            </tbody>
-          </table>
+                `).join('')}
+              </tbody>
+            </table>
+          `}
         </div>
       </div>
     `;
@@ -2101,13 +1735,13 @@
 
     if (chartNumber && patientName) {
       console.log(`🧩 Found patient: ${patientName} (${chartNumber})`);
-      
+
       // Initialize the UI components
       addStyles();
       createFloatingButtons();
       createBackdrop();
       createFloatingPanel();
-      
+
       // Show chart details by default (using static data)
       showChartDetails();
       hasLoaded = true;
@@ -2116,11 +1750,8 @@
 
   // Make functions globally available for onclick handlers
   window.handleSearch = handleSearch;
-  window.handleAuditSearch = handleAuditSearch;
   window.handleConditionAuditSearch = handleConditionAuditSearch;
-  window.sortAuditData = sortAuditData;
   window.sortConditionAuditData = sortConditionAuditData;
-  window.changePage = changePage;
 
   // 🧠 Observe DOM changes
   observer = new MutationObserver(() => tryAutoLoad());
