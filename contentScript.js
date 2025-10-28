@@ -1287,8 +1287,12 @@
 
   // Create floating buttons
   function createFloatingButtons() {
+    console.log("🔧 Creating floating buttons...");
     const existing = document.getElementById('floatingButtons');
-    if (existing) return existing;
+    if (existing) {
+      console.log("⚠️ Floating buttons already exist, skipping creation");
+      return existing;
+    }
 
     const buttonsDiv = document.createElement('div');
     buttonsDiv.id = 'floatingButtons';
@@ -1347,10 +1351,12 @@
     buttonsDiv.appendChild(conditionAuditBtn);
 
     document.body.appendChild(buttonsDiv);
+    console.log("✅ Floating buttons created and added to DOM");
 
     // Add event listeners
     chartBtn.addEventListener('click', showChartDetails);
     conditionAuditBtn.addEventListener('click', showConditionAuditTable);
+    console.log("✅ Event listeners added to buttons");
 
     return buttonsDiv;
   }
@@ -1446,11 +1452,14 @@
   }
 
   function showPanel(type) {
+    console.log(`🎯 showPanel called with type: ${type}`);
     const div = document.getElementById(FLOATING_DIV_ID);
     const backdrop = document.getElementById('backdrop');
     const floatingButtons = document.getElementById('floatingButtons');
     const chartBtn = document.getElementById('chartBtn');
     const conditionAuditBtn = document.getElementById('conditionAuditBtn');
+
+    console.log('Elements found:', { div: !!div, backdrop: !!backdrop, floatingButtons: !!floatingButtons, chartBtn: !!chartBtn, conditionAuditBtn: !!conditionAuditBtn });
 
     if (div && backdrop && floatingButtons) {
       div.classList.remove('hidden');
@@ -1458,6 +1467,9 @@
       backdrop.classList.add('visible');
       floatingButtons.classList.add('shifted');
       floatingButtons.style.right = '30% !important';
+      console.log('✅ Panel shown successfully');
+    } else {
+      console.error('❌ Missing required elements for panel');
     }
 
     contentType = type;
@@ -1485,10 +1497,12 @@
 
 
   function showChartDetails() {
+    console.log("📊 Chart Details button clicked");
     showPanel('chart');
   }
 
   function showConditionAuditTable() {
+    console.log("📝 Audit Table button clicked");
     showPanel('conditionAudit');
   }
 
@@ -1726,26 +1740,17 @@
   function tryAutoLoad() {
     if (hasLoaded) return;
 
-    const table = document.querySelector(TABLE_SELECTOR);
-    const ul = document.querySelector(UL_SELECTOR);
-    if (!table || !ul) return;
+    // Initialize the UI components regardless of specific page elements
+    console.log("🔍 CareTracker extension: Initializing UI components");
 
-    const chartNumber = document.querySelector("#chartNumber")?.textContent?.trim();
-    const patientName = document.querySelector("#patientName")?.textContent?.trim();
+    // Initialize the UI components
+    addStyles();
+    createFloatingButtons();
+    createBackdrop();
+    createFloatingPanel();
 
-    if (chartNumber && patientName) {
-      console.log(`🧩 Found patient: ${patientName} (${chartNumber})`);
-
-      // Initialize the UI components
-      addStyles();
-      createFloatingButtons();
-      createBackdrop();
-      createFloatingPanel();
-
-      // Show chart details by default (using static data)
-      showChartDetails();
-      hasLoaded = true;
-    }
+    // Don't auto-show panel, let user click buttons
+    hasLoaded = true;
   }
 
   // Make functions globally available for onclick handlers
