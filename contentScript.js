@@ -2,14 +2,16 @@
   const TABLE_SELECTOR = "#ctl00_MainContent_ucPatientDetail_dlPatient";
   const UL_SELECTOR = "#ulReadPatientDetail";
   const FLOATING_BUTTONS_ID = "floatingButtons";
-  const FLOATING_RESPONSE_ID = "floatingResponse";
+  const FLOATING_PANEL_ID = "ct-chart-floating";
+  const BACKDROP_ID = "backdrop";
   let observer;
   let hasLoaded = false;
+  let currentType = null;
 
   console.log("🔍 CareTracker extension: chart + audit button loader running.");
 
   // =============================
-  // 🧩 Inject Floating Buttons
+  // 🧩 Create Floating Buttons
   // =============================
   function createFloatingButtons() {
     if (document.getElementById(FLOATING_BUTTONS_ID)) return;
@@ -64,7 +66,7 @@
         color: #fff;
       }
 
-      #${FLOATING_RESPONSE_ID} {
+      #${FLOATING_PANEL_ID} {
         position: fixed;
         top: 80px;
         right: 80px;
@@ -80,6 +82,46 @@
         font-family: 'Segoe UI', sans-serif;
         font-size: 14px;
         color: #333;
+        opacity: 0;
+        transform: translateY(-20px);
+        transition: all 0.3s ease;
+      }
+
+      #${FLOATING_PANEL_ID}.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      #${BACKDROP_ID} {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.4);
+        z-index: 10000;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+      }
+
+      #${BACKDROP_ID}.visible {
+        opacity: 1;
+        pointer-events: all;
+      }
+
+      .panel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+
+      .close-btn {
+        background: #ff4d4d;
+        border: none;
+        color: white;
+        font-size: 16px;
+        border-radius: 4px;
+        padding: 4px 8px;
+        cursor: pointer;
       }
     `;
     document.head.appendChild(style);
@@ -92,18 +134,20 @@
     // Chart Input Button
     const chartBtn = document.createElement("input");
     chartBtn.type = "button";
+    chartBtn.id = "chartBtn";
     chartBtn.className = "floating-icon-input chart-btn";
     chartBtn.value = "📊";
     chartBtn.title = "Chart Details";
-    chartBtn.addEventListener("click", () => showChartDetails(chartBtn));
+    chartBtn.addEventListener("click", () => showChartDetails());
 
     // Audit Input Button
     const auditBtn = document.createElement("input");
     auditBtn.type = "button";
+    auditBtn.id = "auditBtn";
     auditBtn.className = "floating-icon-input audit-btn";
     auditBtn.value = "📋";
     auditBtn.title = "Audit Details";
-    auditBtn.addEventListener("click", () => showAuditTable(auditBtn));
+    auditBtn.addEventListener("click", () => showAuditDetails());
 
     container.appendChild(chartBtn);
     container.appendChild(auditBtn);
@@ -111,88 +155,129 @@
   }
 
   // =============================
-  // 📊 Fetch Chart Details
+  // 🎯 Ensure Panel Exists
   // =============================
-  function showChartDetails(chartBtn) {
-    const auditBtn = document.querySelector(".audit-btn");
-    chartBtn.classList.add("active");
-    auditBtn?.classList.remove("active");
-
-    const chartNumber = document.querySelector("#chartNumber")?.textContent?.trim();
-    const memberName = document.querySelector("#patientName")?.textContent?.trim();
-    if (!chartNumber || !memberName) {
-      return alert("⚠️ Patient ID or name not found on page.");
+  function ensurePanelExists() {
+    let backdrop = document.getElementById(BACKDROP_ID);
+    if (!backdrop) {
+      backdrop = document.createElement("div");
+      backdrop.id = BACKDROP_ID;
+      backdrop.addEventListener("click", hidePanel);
+      document.body.appendChild(backdrop);
     }
 
-    console.log(`📡 Fetching Chart Details for: ${memberName} (${chartNumber})`);
-    showResponsePanel(`<p>Loading chart details...</p>`);
+    let panel = document.getElementById(FLOATING_PANEL_ID);
+    if (!panel) {
+      panel = document.createElement("div");
+      panel.id = FLOATING_PANEL_ID;
+      panel.innerHTML = `
+        <div class="panel-header">
+          <h3 id="chartTitle">Details</h3>
+          <button class="close-btn" id="closePanelBtn">✖</button>
+        </div>
+        <div id="panelContent">Loading...</div>
+      `;
+      document.body.appendChild(panel);
+      document.getElementById("closePanelBtn").addEventListener("click", hidePanel);
+    }
+  }
+
+  // =============================
+  // 🧭 Show Panel (Chart / Audit)
+  // =============================
+  function showPanel(type, title, contentHtml) {
+    ensurePanelExists();
+
+    const panel = document.getElementById(FLOATING_PANEL_ID);
+    const backdrop = document.getElementById(BACKDROP_ID);
+    const chartBtn = document.getElementById("chartBtn");
+    const auditBtn = document.getElementById("auditBtn");
+    const content = document.getElementById("panelContent");
+    const titleEl = document.getElementById("chartTitle");
+
+    panel.classList.remove("show");
+    setTimeout(() => panel.classList.add("show"), 10);
+    backdrop.classList.add("visible");
+
+    currentType = type;
+    titleEl.textContent = title;
+    content.innerHTML = contentHtml;
+
+    if (type === "chart") {
+      chartBtn.classList.add("active");
+      auditBtn.classList.remove("active");
+    } else if (type === "audit") {
+      auditBtn.classList.add("active");
+      chartBtn.classList.remove("active");
+    }
+  }
+
+  function hidePanel() {
+    const panel = document.getElementById(FLOATING_PANEL_ID);
+    const backdrop = document.getElementById(BACKDROP_ID);
+    panel?.classList.remove("show");
+    backdrop?.classList.remove("visible");
+  }
+
+  // =============================
+  // 📊 Chart Details
+  // =============================
+  function showChartDetails() {
+    const chartNumber = document.querySelector("#chartNumber")?.textContent?.trim();
+    const memberName = document.querySelector("#patientName")?.textContent?.trim();
+    if (!chartNumber || !memberName) return alert("⚠️ Patient info not found.");
+
+    console.log(`📡 Fetching Chart Details for ${memberName} (${chartNumber})`);
+    showPanel("chart", `Chart Details - ${memberName}`, `<p>Loading chart details...</p>`);
 
     chrome.runtime.sendMessage(
       { action: "fetchChartDetails", payload: { member_id: chartNumber, member_name: memberName } },
       (response) => {
+        const content = document.getElementById("panelContent");
+        if (!content) return;
         if (chrome.runtime.lastError)
-          return showResponsePanel(`<p style="color:red;">${chrome.runtime.lastError.message}</p>`);
+          return (content.innerHTML = `<p style="color:red;">${chrome.runtime.lastError.message}</p>`);
         if (!response)
-          return showResponsePanel(`<p style="color:red;">No response from background.</p>`);
+          return (content.innerHTML = `<p style="color:red;">No response from background.</p>`);
         if (response.error)
-          return showResponsePanel(`<p style="color:red;">❌ ${response.error}</p>`);
-
-        showResponsePanel(`<pre>${JSON.stringify(response.data, null, 2)}</pre>`);
+          return (content.innerHTML = `<p style="color:red;">❌ ${response.error}</p>`);
+        content.innerHTML = `<pre>${JSON.stringify(response.data, null, 2)}</pre>`;
       }
     );
   }
 
   // =============================
-  // 📋 Fetch Audit Details
+  // 📋 Audit Details
   // =============================
-  function showAuditTable(auditBtn) {
-    const chartBtn = document.querySelector(".chart-btn");
-    auditBtn.classList.add("active");
-    chartBtn?.classList.remove("active");
-
+  function showAuditDetails() {
     const chartNumber = document.querySelector("#chartNumber")?.textContent?.trim();
     const memberName = document.querySelector("#patientName")?.textContent?.trim();
-    if (!chartNumber || !memberName) {
-      return alert("⚠️ Patient ID or name not found on page.");
-    }
+    if (!chartNumber || !memberName) return alert("⚠️ Patient info not found.");
 
-    console.log(`📡 Fetching Audit Details for: ${memberName} (${chartNumber})`);
-    showResponsePanel(`<p>Loading audit details...</p>`);
+    console.log(`📡 Fetching Audit Details for ${memberName} (${chartNumber})`);
+    showPanel("audit", `Audit Details - ${memberName}`, `<p>Loading audit details...</p>`);
 
     chrome.runtime.sendMessage(
       { action: "fetchAuditDetails", payload: { member_id: chartNumber, member_name: memberName } },
       (response) => {
+        const content = document.getElementById("panelContent");
+        if (!content) return;
         if (chrome.runtime.lastError)
-          return showResponsePanel(`<p style="color:red;">${chrome.runtime.lastError.message}</p>`);
+          return (content.innerHTML = `<p style="color:red;">${chrome.runtime.lastError.message}</p>`);
         if (!response)
-          return showResponsePanel(`<p style="color:red;">No response from background.</p>`);
+          return (content.innerHTML = `<p style="color:red;">No response from background.</p>`);
         if (response.error)
-          return showResponsePanel(`<p style="color:red;">❌ ${response.error}</p>`);
-
-        showResponsePanel(`<pre>${JSON.stringify(response.data, null, 2)}</pre>`);
+          return (content.innerHTML = `<p style="color:red;">❌ ${response.error}</p>`);
+        content.innerHTML = `<pre>${JSON.stringify(response.data, null, 2)}</pre>`;
       }
     );
   }
 
   // =============================
-  // 🪟 Display Floating Response
-  // =============================
-  function showResponsePanel(content) {
-    let panel = document.getElementById(FLOATING_RESPONSE_ID);
-    if (!panel) {
-      panel = document.createElement("div");
-      panel.id = FLOATING_RESPONSE_ID;
-      document.body.appendChild(panel);
-    }
-    panel.innerHTML = content;
-  }
-
-  // =============================
-  // 🧠 Detect Patient & Auto-load
+  // 🧠 Auto-load when patient found
   // =============================
   function tryAutoLoad() {
     if (hasLoaded) return;
-
     const table = document.querySelector(TABLE_SELECTOR);
     const ul = document.querySelector(UL_SELECTOR);
     if (!table || !ul) return;
