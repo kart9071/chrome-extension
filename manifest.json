@@ -3,22 +3,40 @@
   "name": "CareTracker Button Listener",
   "version": "1.0",
   "description": "Shows a button when CareTracker patient table appears.",
-  "permissions": ["scripting", "activeTab", "storage"],
+  "permissions": [
+    "scripting",
+    "activeTab",
+    "storage"
+  ],
   "host_permissions": [
-    "https://*.caretracker.com/*",
-    "https://h4xqr89uik.execute-api.us-east-1.amazonaws.com/dev/*",
-    "https://sfe5arbv61.execute-api.us-east-1.amazonaws.com/dev/*"
+    "https://*.caretracker.com/*"
   ],
   "background": {
     "service_worker": "service_worker.js"
   },
   "content_scripts": [
     {
-      "matches": ["https://*.caretracker.com/*"],
-      "js": ["contentScript.js"],
-      "css": ["styles.css"],
+      "matches": [
+        "https://*.caretracker.com/*"
+      ],
+      "js": [
+        "contentScript.js"
+      ],
+      "css": [
+        "styles.css"
+      ],
       "all_frames": true,
       "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "fonts/Poppins-Regular.ttf"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ],
   "options_page": "options.html"

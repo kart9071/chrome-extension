@@ -24,307 +24,20 @@
   let auditSearchTerm = '';
   let sortConfig = { key: null, direction: 'asc' };
 
+  // current member context (used for API calls)
+  let currentMemberId = null;
+  let currentMemberName = null;
+  let currentDos = null; // formatted DOS (date of service) to show in UI
+  let isChartLoading = false;
+
   console.log("🔍 CareTracker extension: auto chart details loader running.");
 
-  // Medical Conditions Data
-  const medicalConditionsData = [
-    {
-      id: 1,
-      title: 'Type 2 diabetes mellitus with diabetic chronic kidney disease',
-      icon: '🩺',
-      details: {
-        eGFR: 52,
-        date: '11/15/2022',
-        icd10: 'E11.22',
-        hcc24: 18,
-        hcc28: 37,
-        rxHcc: '15',
-        note: true,
-        active: true,
-        code_type: 'Documented',
-        code_status: 'DOCUMENTED'
-      },
-      description: 'Patient diagnosed with type 2 diabetes mellitus with associated kidney disease. Requires close monitoring of renal function and glycemic control. Management includes glucose monitoring, HbA1c testing every 3 months, and nephrology consultation.',
-      clinicalIndicators: 'Elevated HbA1c, Fasting glucose > 126 mg/dL',
-      codeExplanation: 'Type 2 diabetes mellitus with diabetic chronic kidney disease',
-      noteText: 'Patient needs regular follow-up with endocrinologist and nephrologist. Current medications include metformin and ACE inhibitor for kidney protection.'
-    },
-    {
-      id: 2,
-      title: 'Chronic kidney disease, stage 3a',
-      icon: '🩺',
-      details: {
-        encounter: 'Database Test',
-        date: '11/04/2021',
-        icd10: 'N18.31',
-        hcc24: 138,
-        hcc28: 329,
-        rxHcc: '21',
-        source: 'All Source Data',
-        note: true,
-        active: false,
-        code_type: 'Opportunities',
-        RADV_score: 0,
-        code_status: 'OPPORTUNITIES'
-      },
-      description: 'Chronic kidney disease in stage 3a with moderate reduction in kidney function. eGFR values consistently between 45-59 mL/min/1.73m². Patient requires ongoing monitoring and management of underlying risk factors.',
-      clinicalIndicators: 'eGFR 30-59 mL/min/1.73m²',
-      codeExplanation: 'Chronic kidney disease, stage 3a (moderate)',
-      noteText: 'Monitor progression carefully. Patient advised on diet modifications and medication adjustments to preserve kidney function.'
-    },
-    {
-      id: 3,
-      title: 'Morbid (severe) obesity due to excess calories',
-      icon: '⚖️',
-      details: {
-        bmi: 42.3,
-        date: '08/17/2022',
-        icd10: 'E66.01',
-        hcc24: 22,
-        hcc28: 48,
-        rxHcc: '12',
-        source: 'All Source Data',
-        note: true,
-        active: false,
-        code_type: 'Documented',
-        RADV_score: 2,
-        code_status: 'DOCUMENTED'
-      },
-      description: 'Patient presents with severe obesity (BMI 42.3 kg/m²). Comprehensive approach to weight management including dietary counseling, physical activity recommendations, and consideration of bariatric surgery evaluation.',
-      clinicalIndicators: 'BMI ≥ 40 kg/m²',
-      codeExplanation: 'Morbid obesity due to excess calories',
-      noteText: 'Patient has tried multiple weight loss programs without success. Will consider referral to bariatric surgery program if current intervention fails.'
-    },
-    {
-      id: 4,
-      title: 'Body mass index [BMI] 40.0-44.9, adult',
-      icon: '📊',
-      details: {
-        bmi: 42.5,
-        date: '11/07/2022',
-        icd10: 'Z68.41',
-        hcc24: 22,
-        hcc28: 41,
-        rxHcc: null,
-        source: 'All Source Data',
-        note: false,
-        active: false,
-        code_type: 'Opportunities',
-        RADV_score: 1,
-        code_status: 'OPPORTUNITIES'
-      },
-      description: 'Patient has BMI in the severely obese range (40.0-44.9). Documented for tracking and management purposes.',
-      clinicalIndicators: 'BMI 40.0-44.9 kg/m²',
-      codeExplanation: 'Body mass index 40.0-44.9, adult'
-    },
-    {
-      id: 5,
-      title: 'Inflammatory polyarthropathy',
-      icon: '🦴',
-      details: {
-        source: 'MSO Data, suspect diagnosis',
-        date: '09/03/2021',
-        icd10: 'M06.4',
-        hcc24: 40,
-        hcc28: 94,
-        note: true,
-        active: false,
-        code_type: 'Opportunities',
-        RADV_score: 0,
-        code_status: 'OPPORTUNITIES'
-      },
-      clinicalIndicators: 'Joint pain, swelling, morning stiffness',
-      documentation: 'Rheumatology consult, Imaging studies',
-      codeExplanation: 'Inflammatory polyarthropathy, unspecified'
-    },
-    {
-      id: 6,
-      title: 'Degenerative disease of nervous system, unspecified',
-      icon: '🧠',
-      details: {
-        source: 'Claim, CMS',
-        date: '06/25/2020',
-        icd10: 'G31.9',
-        hcc24: 52,
-        hcc28: "",
-        note: true,
-        active: false,
-        code_type: 'Documented',
-        RADV_score: 1,
-        code_status: 'DOCUMENTED'
-      },
-      clinicalIndicators: 'Cognitive decline, memory impairment',
-      documentation: 'Neurology consult, Cognitive assessments',
-      codeExplanation: 'Degenerative disease of nervous system, unspecified'
-    },
-    {
-      id: 7,
-      title: 'Major depressive disorder, single episode, mild',
-      icon: '🧠',
-      details: {
-        source: 'MSO Data, chronic diagnosis',
-        date: '04/30/2020',
-        icd10: 'F32.0',
-        hcc24: 59,
-        hcc28: "",
-        note: true,
-        active: false,
-        code_type: 'Opportunities',
-        RADV_score: 2,
-        code_status: 'OPPORTUNITIES'
-      },
-      clinicalIndicators: 'Depressed mood, anhedonia, sleep disturbance',
-      documentation: 'Psychiatry consult, PHQ-9 assessment',
-      codeExplanation: 'Major depressive disorder, single episode, mild'
-    },
-    {
-      id: 8,
-      title: 'Major depressive disorder, single episode, moderate',
-      icon: '🧠',
-      details: {
-        source: 'Suspected condition assertion',
-        date: '09/10/2022',
-        icd10: 'F32.1',
-        hcc24: 59,
-        hcc28: "",
-        note: true,
-        active: false,
-        code_type: 'Documented',
-        RADV_score: 3,
-        code_status: 'DOCUMENTED'
-      },
-      clinicalIndicators: 'Severe depression, functional impairment',
-      documentation: 'Psychiatry consult, Clinical assessment',
-      codeExplanation: 'Major depressive disorder, single episode, moderate'
-    },
-    {
-      id: 9,
-      title: 'Hypertension, unspecified',
-      icon: '🫀',
-      details: {
-        source: 'All Source Data',
-        date: '03/15/2023',
-        icd10: 'I10',
-        hcc24: 85,
-        hcc28: 85,
-        rxHcc: '119',
-        note: true,
-        active: true,
-        code_type: 'Documented',
-        RADV_score: 1,
-        code_status: 'DOCUMENTED'
-      },
-      description: 'Essential hypertension requiring ongoing management with blood pressure medications and lifestyle modifications. Regular monitoring of blood pressure at home.',
-      clinicalIndicators: 'Blood pressure > 140/90 mmHg',
-      codeExplanation: 'Essential hypertension, unspecified',
-      noteText: 'Patient is compliant with ACE inhibitor regimen. Blood pressure controlled with current medication.'
-    },
-    {
-      id: 10,
-      title: 'Hyperlipidemia, unspecified',
-      icon: '🩸',
-      details: {
-        source: 'Lab Results',
-        date: '02/20/2023',
-        icd10: 'E78.5',
-        hcc24: 22,
-        hcc28: 22,
-        note: false,
-        active: true,
-        code_type: 'Opportunities',
-        RADV_score: 0,
-        code_status: 'OPPORTUNITIES'
-      },
-      clinicalIndicators: 'Total cholesterol > 200 mg/dL',
-      documentation: 'Lipid panel, Lab results',
-      codeExplanation: 'Hyperlipidemia, unspecified'
-    },
-    {
-      id: 11,
-      title: 'Coronary artery disease, unspecified',
-      icon: '🫀',
-      details: {
-        source: 'Cardiology Report',
-        date: '01/15/2023',
-        icd10: 'I25.9',
-        hcc24: 85,
-        hcc28: 85,
-        note: true,
-        active: true,
-        code_type: 'Documented',
-        RADV_score: 2,
-        code_status: 'DOCUMENTED'
-      },
-      clinicalIndicators: 'Chest pain, abnormal stress test',
-      documentation: 'Cardiology consult, Stress test',
-      codeExplanation: 'Coronary artery disease, unspecified'
-    },
-    {
-      id: 12,
-      title: 'Osteoarthritis of knee, bilateral',
-      icon: '🦴',
-      details: {
-        source: 'Orthopedic Report',
-        date: '12/10/2022',
-        icd10: 'M17.0',
-        hcc24: 40,
-        hcc28: 40,
-        note: true,
-        active: true,
-        code_type: 'Opportunities',
-        RADV_score: 1,
-        code_status: 'OPPORTUNITIES'
-      },
-      clinicalIndicators: 'Joint pain, stiffness, crepitus',
-      documentation: 'Orthopedic consult, X-ray findings',
-      codeExplanation: 'Osteoarthritis of knee, bilateral'
-    }
-  ];
+  // Medical Conditions Data (populated from API)
+  const medicalConditionsData = [];
 
 
-  // Condition Audit Table Data
-  const conditionAuditData = [
-    {
-      id: 1,
-      conditionName: 'Bilateral lower extremity atherosclerosis with rest pain',
-      accurateCode: 'I70.229',
-      progressNotes: ['05/05/2025', '04/15/2025'],
-      hccCode: '264',
-      evidenceStrength: 'Moderate',
-      auditDate: '10/24/2025',
-      auditScore: 3
-    },
-    {
-      id: 2,
-      conditionName: 'Paraparesis',
-      accurateCode: 'G82.20',
-      progressNotes: ['11/01/2024'],
-      hccCode: '181',
-      evidenceStrength: 'Weak',
-      auditDate: '',
-      auditScore: 2
-    },
-    {
-      id: 3,
-      conditionName: 'Type 2 diabetes mellitus',
-      accurateCode: 'E11.9',
-      progressNotes: ['11/22/2022', '10/15/2022'],
-      hccCode: '38',
-      evidenceStrength: 'Weak',
-      auditDate: '',
-      auditScore: 2
-    },
-    {
-      id: 4,
-      conditionName: 'Chronic obstructive pulmonary disease, unspecified',
-      accurateCode: 'J44.9',
-      progressNotes: ['11/22/2022'],
-      hccCode: '280',
-      evidenceStrength: 'Moderate',
-      auditDate: '',
-      auditScore: 3
-    }
-  ];
+  // Condition Audit Table Data (populated from API)
+  let conditionAuditData = [];
 
   // Add CSS styles
   function addStyles() {
@@ -336,6 +49,17 @@
          padding: 0 !important;
          box-sizing: border-box !important;
        }
+
+      @font-face {
+        font-family: 'Poppins';
+        src: url('${chrome.runtime.getURL("fonts/Poppins-Regular.ttf")}') format('truetype');
+        font-weight: normal;
+        font-style: normal;
+      }
+
+      * {
+      font-family: 'Poppins', sans-serif !important;
+      }
 
        /* Rectangular Floating Button Container */
        .floating-buttons {
@@ -539,6 +263,14 @@
          font-weight: 600 !important;
        }
 
+      /* Subtitle under chart title (small, muted) */
+      .chart-subtitle {
+        font-size: 12px !important;
+        color: #6c757d !important;
+        margin-top: 2px !important;
+        font-weight: 500 !important;
+      }
+
        #ct-chart-floating .close-btn {
          background: transparent !important;
          color: #666 !important;
@@ -705,7 +437,7 @@
          scrollbar-width: thin !important;
          scrollbar-color: #888 #f1f1f1 !important;
          overflow-y: auto !important;
-         max-height: calc(100vh - 200px) !important;
+         max-height: calc(100vh - 100px) !important;
          min-height: 400px !important;
        }
 
@@ -713,7 +445,7 @@
       .medical-condition-card {
         background: #ffffff !important;
         border: 1px solid #e8e8e8 !important;
-        border-left: 4px solid #28a745 !important;
+        border-left: 4px solid #1e40af !important;
         border-radius: 4px !important;
         padding: 5px !important;
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06) !important;
@@ -837,6 +569,79 @@
         padding: 6px 0 !important;
         font-size: 11px !important;
         color: #374151 !important;
+      }
+
+      /* Special styling for the Clinical Indicators row */
+      .card-info-row.indicators-row {
+        background: #ecfdf5 !important; /* light green */
+        border: 0.5px solid #81c791ff !important; /* darker green border */
+        padding: 8px 10px !important;
+        gap: 10px !important;
+        border-radius: 6px !important;
+      }
+      .card-info-row.indicators-row .label {
+        color: #111111ff !important;
+        font-weight: 600 !important;
+      }
+      /* Code Explanation row styling - light orange background, subtle border, rounded */
+      .card-info-row.code-explanation-row {
+        background: #fff7ed !important; /* very light orange */
+        border: 0.5px solid rgba(249, 115, 22, 0.35) !important; /* subtle medium-light orange */
+        padding: 8px 10px !important;
+        gap: 10px !important;
+        border-radius: 6px !important;
+        margin-top: 8px !important; /* small gap between indicators and this row */
+      }
+      .card-info-row.code-explanation-row .label {
+        color: #92400e !important; /* darker orange for label */
+        font-weight: 600 !important;
+      }
+      /* Small utility classes for icon sizing and color (from request) */
+      .text-blue-600 {
+        --tw-text-opacity: 1 !important;
+        color: rgb(37 99 235 / var(--tw-text-opacity, 1)) !important;
+      }
+      .w-4 { width: 1rem !important; }
+      .h-4 { height: 1rem !important; }
+      /* Amber utility classes for Code Explanation icon */
+      .p-1 { padding: .25rem !important; }
+      .bg-amber-100 { --tw-bg-opacity: 1 !important; background-color: rgb(254 243 199 / var(--tw-bg-opacity, 1)) !important; }
+      .rounded-full { border-radius: 9999px !important; }
+      .flex-shrink-0, .shrink-0 { flex-shrink: 0 !important; }
+      .text-amber-600 { --tw-text-opacity: 1 !important; color: rgb(217 119 6 / var(--tw-text-opacity, 1)) !important; }
+      .text-amber-600 { --tw-text-opacity: 1 !important; color: rgb(217 119 6 / var(--tw-text-opacity, 1)) !important; }
+
+      /* Shared Note / action-button used as a label for card rows (compact, icon + text + chevron) */
+      .note-button {
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 0.5rem !important; /* matches .gap-2 */
+        justify-content: space-between !important;
+        background: transparent !important;
+        border: none !important;
+        padding: 0.375rem 0.5rem !important; /* px-2 py-2 equivalent compact */
+        font-size: 0.75rem !important; /* text-xs */
+        color: #4b5563 !important; /* text-gray-600 */
+        border-radius: 6px !important; /* rounded-sm approximation */
+        cursor: pointer !important;
+      }
+      .note-button:hover {
+        color: #111827 !important; /* hover:text-gray-900 */
+        background: #f3f4f6 !important; /* hover:bg-gray-100 */
+      }
+      .note-button:focus {
+        outline: 2px solid rgba(59,130,246,0.18) !important;
+        outline-offset: 2px !important;
+      }
+      .note-button .note-text {
+        font-size: 0.875rem !important; /* text-sm */
+        font-weight: 500 !important; /* font-medium */
+      }
+      .note-button .note-icon,
+      .note-button .note-chevron {
+        width: 1rem !important; /* w-4 */
+        height: 1rem !important; /* h-4 */
+        flex-shrink: 0 !important;
       }
 
       .card-info-row .label {
@@ -1327,6 +1132,71 @@
     });
   }
 
+  // Fetch audit details from the extension service worker
+  function fetchAuditDetailsFromServiceWorker(memberId, memberName) {
+    return new Promise((resolve, reject) => {
+      try {
+        chrome.runtime.sendMessage(
+          { action: 'fetchAuditDetails', payload: { member_id: memberId, member_name: memberName } },
+          (response) => {
+            if (chrome.runtime.lastError) {
+              return reject(new Error(chrome.runtime.lastError.message));
+            }
+            if (!response) return reject(new Error('No response from service worker'));
+            if (response.error) return reject(new Error(response.error));
+            return resolve(response.data);
+          }
+        );
+      } catch (err) {
+        reject(err);
+      }
+    });
+  }
+
+  // Map audit API rows to internal audit data shape
+  function mapApiAuditRows(apiRows) {
+    if (!Array.isArray(apiRows)) return [];
+    return apiRows.map(a => ({
+      id: a.id || null,
+      conditionName: a.documented_condition || '',
+      accurateCode: a.accurate_code || a.documented_icd_code || '',
+      progressNotes: a.pn_dates ? a.pn_dates.split(',').map(s => s.trim()).filter(Boolean) : [],
+      hccCode: a.hcc_code || '',
+      evidenceStrength: a.evidence_strength || '',
+      auditDate: a.audit_date || '',
+      auditScore: (typeof a.audit_score !== 'undefined' && a.audit_score !== null) ? a.audit_score : 0,
+      raw: a
+    }));
+  }
+
+  // Fetch audit details and update conditionAuditData
+  async function fetchAuditDetails(memberId, memberName) {
+    const apiData = await fetchAuditDetailsFromServiceWorker(memberId, memberName);
+    console.log('fetched audit details from service worker:', apiData);
+
+    // Normalize payload shapes: apiData may be { status,message,data:[...] } or the array directly
+    let payload = apiData && apiData.data ? apiData.data : apiData;
+    let auditArray = [];
+    if (Array.isArray(payload)) {
+      auditArray = payload;
+    } else if (payload && Array.isArray(payload.data)) {
+      auditArray = payload.data;
+    }
+
+    const mapped = mapApiAuditRows(auditArray || []);
+    if (mapped.length) {
+      // replace conditionAuditData
+      conditionAuditData = mapped;
+      console.log('updated conditionAuditData:', conditionAuditData.length);
+      // If audit panel is visible, refresh UI
+      if (contentType === 'conditionAudit') {
+        try { showConditionAuditContent(); } catch (e) { console.error(e); }
+      }
+    } else {
+      console.warn('No audit rows returned from API; keeping existing audit data.');
+    }
+  }
+
   // Map API medical_conditions -> internal medicalConditionsData shape
   function mapApiMedicalConditions(apiConditions) {
     if (!Array.isArray(apiConditions)) return [];
@@ -1343,15 +1213,15 @@
           source: c.documented_in || c.source || '',
           note: !!(c.analyst_notes || c.query),
           active: !!c.isChronic,
-          code_type: c.code_type || '',
+          code_type: c.code_status || '',
           RADV_score: c.RADV_score || c.radv_score || 0,
           code_status: c.code_status || '' ,
           date: c.last_documented_date || null
         },
         description: c.code_explanation || '',
         clinicalIndicators: c.clinical_indicators || '',
-        codeExplanation: c.code_explanation || '',
-        noteText: c.analyst_notes || c.documented_in || null
+        codeExplanation: c.query || '',
+        noteText: c.analyst_notes || null
       };
     });
   }
@@ -1379,7 +1249,19 @@
 
     // Add event listeners
     document.getElementById('chartBtn').addEventListener('click', showChartDetails);
-    document.getElementById('conditionAuditBtn').addEventListener('click', showConditionAuditTable);
+    // When user clicks Audit, show panel and fetch audit details via service worker
+    document.getElementById('conditionAuditBtn').addEventListener('click', async () => {
+      // Ensure UI is visible
+      showPanel('conditionAudit');
+      const chartContent = document.getElementById('chartContent');
+      if (chartContent) chartContent.innerHTML = `<div style="padding:20px">Loading audit details...</div>`;
+      try {
+        await fetchAuditDetails(currentMemberId || '89700511', currentMemberName || 'John Doe');
+      } catch (err) {
+        console.error('Failed to fetch audit details:', err);
+        if (chartContent) chartContent.innerHTML = `<div style="padding:20px;color:#c00">Failed to load audit details: ${err.message}</div>`;
+      }
+    });
 
     return buttonsDiv;
   }
@@ -1408,7 +1290,13 @@
 
     div.innerHTML = `
       <div class="chart-header">
-        <h3 id="chartTitle">Chart Details - John Doe</h3>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <h3 id="chartTitle">HCC Opportunities - John Doe</h3>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+            <div id="chartSubTitle" class="chart-subtitle"></div>
+            <div id="chartResultsCount" class="chart-subtitle" style="text-align:right;"></div>
+          </div>
+        </div>
         <button class="close-btn" id="closeChartDiv">✕</button>
       </div>
       <div id="chartContent"></div>
@@ -1445,7 +1333,10 @@
         conditionAuditBtn.setAttribute('data-tooltip', 'Audit Details Table');
       }
       chartBtn.setAttribute('data-tooltip', 'Active - Chart Details');
-      document.getElementById('chartTitle').textContent = 'Chart Details - John Doe';
+      document.getElementById('chartTitle').textContent = 'HCC Opportunities - Loading...';
+      // restore subtitle (DOS) if we already have it
+      const subEl = document.getElementById('chartSubTitle');
+      if (subEl) subEl.textContent = currentDos ? `As on ${currentDos}` : '';
       showChartContent();
     } else if (type === 'conditionAudit') {
       if (conditionAuditBtn) {
@@ -1455,6 +1346,9 @@
       chartBtn.classList.remove('active');
       chartBtn.setAttribute('data-tooltip', 'Chart Details');
       document.getElementById('chartTitle').textContent = 'Audit Details Table';
+      // hide subtitle when showing audit table
+      const subEl = document.getElementById('chartSubTitle');
+      if (subEl) subEl.textContent = '';
       showConditionAuditContent();
     }
   }
@@ -1462,28 +1356,40 @@
 
   async function showChartDetails() {
     // Try to infer member info from the page when possible
-    let memberId = "89700511";
-    let memberName = 'fdsfds';
-    try {
-      const ul = document.querySelector(UL_SELECTOR);
-      if (ul) {
-        memberName = ul.innerText.trim().split('\n')[0] || '';
-      }
-      // fallback: try table selector
-      if (!memberName) {
-        const tbl = document.querySelector(TABLE_SELECTOR);
-        if (tbl) memberName = tbl.innerText.trim().split('\n')[0] || '';
-      }
-    } catch (e) {
-      // ignore parsing errors
-    }
+    //Should be changed to dynamic once the UI integration is done
+    // let memberId = "89700511";
+    // let memberName = 'fdsfds';
+    const table = document.querySelector(TABLE_SELECTOR);
+    const ul = document.querySelector(UL_SELECTOR);
+    if (!table || !ul) return;
+
+    const memberId = document.querySelector("#chartNumber")?.textContent?.trim();
+    const memberName = document.querySelector("#patientName")?.textContent?.trim();
+    // try {
+    //   const ul = document.querySelector(UL_SELECTOR);
+    //   if (ul) {
+    //     memberName = ul.innerText.trim().split('\n')[0] || '';
+    //   }
+    //   // fallback: try table selector
+    //   if (!memberName) {
+    //     const tbl = document.querySelector(TABLE_SELECTOR);
+    //     if (tbl) memberName = tbl.innerText.trim().split('\n')[0] || '';
+    //   }
+    // } catch (e) {
+    //   // ignore parsing errors
+    // }
 
     // Show loading UI while fetching
     showPanel('chart');
+    isChartLoading = true;
+    // show a loading placeholder in the content area
     const chartContent = document.getElementById('chartContent');
     if (chartContent) {
       chartContent.innerHTML = `<div style="padding:20px">Loading chart details...</div>`;
     }
+    // update header count to show loading state
+    const headerCountEl = document.getElementById('chartResultsCount');
+    if (headerCountEl) headerCountEl.textContent = 'Loading...';
 
     try {
       const apiData = await fetchChartDetailsFromServiceWorker(memberId, memberName);
@@ -1496,16 +1402,32 @@
       const mapped = mapApiMedicalConditions(apiConditions);
 
 
-      // Replace medicalConditionsData contents with mapped results
+  // Replace medicalConditionsData contents with mapped results
       medicalConditionsData.length = 0;
       Array.prototype.push.apply(medicalConditionsData, mapped);
+  isChartLoading = false;
       console.log("updated the medicalConditionsData:", medicalConditionsData);
       // Update title if member info available
       if (payload && payload.member) {
         const name = `${payload.member.fname || ''} ${payload.member.lname || ''}`.trim();
-        if (name) document.getElementById('chartTitle').textContent = `Chart Details - ${name}`;
+        if (name) document.getElementById('chartTitle').textContent = `HCC Opportunities - ${name}`;
       } else if (memberName) {
-        document.getElementById('chartTitle').textContent = `Chart Details - ${memberName}`;
+        document.getElementById('chartTitle').textContent = `HCC Opportunities - ${memberName}`;
+      }
+      // Extract DOS (date of service) from payload.appointment.DOS and format for subtitle
+      try {
+        const dosIso = payload && payload.appointment && (payload.appointment.DOS || payload.appointment.dos);
+        if (dosIso) {
+          const formatted = new Date(dosIso).toLocaleDateString();
+          currentDos = formatted;
+          const sub = document.getElementById('chartSubTitle');
+          if (sub) sub.textContent = `As on ${formatted}`;
+        } else {
+          const sub = document.getElementById('chartSubTitle');
+          if (sub) sub.textContent = '';
+        }
+      } catch (e) {
+        console.warn('Failed to parse DOS from chart payload', e);
       }
       console.log("updated the member details")
 
@@ -1513,6 +1435,7 @@
       updateChartContent();
     } catch (err) {
       console.error('Failed to fetch chart details:', err);
+      isChartLoading = false;
       if (chartContent) {
         chartContent.innerHTML = `<div style="padding:20px;color:#c00">Failed to load chart details: ${err.message}</div>`;
       }
@@ -1559,31 +1482,16 @@
 
     if (!medicalSection) {
       // First time - create the structure
-       const searchBarHTML = showSearchBar
-         ? `
-         <div class="search-container">
-           <input
-             type="text"
-             placeholder="Search conditions, ICD codes, HCC codes, status..."
-             value="${searchTerm}"
-             oninput="window.handleSearch(this.value)"
-             class="search-input"
-           />
-           <div class="search-results-count">
-             ${medicalConditionsData.length} of ${medicalConditionsData.length} conditions
-           </div>
-         </div>
-       `
-         : '';
+      // Keep the conditional present (for future toggling) but intentionally render no search UI
+      const searchBarHTML = showSearchBar ? '' : '';
 
       chartContent.innerHTML = `
-        <div class="medical-conditions-section">
-          <h4>Medical Conditions</h4>
-          ${searchBarHTML}
-          <div class="medical-conditions-scroll">
+          <div class="medical-conditions-section">
+            ${searchBarHTML}
+            <div class="medical-conditions-scroll">
+            </div>
           </div>
-        </div>
-      `;
+        `;
     }
 
     // Update the content
@@ -1595,10 +1503,11 @@
      const filteredConditions = filterMedicalConditions();
      console.log('Filtered conditions count:', filteredConditions.length); // Debug log
 
-     // Prefer scoping to the panel's chartContent to avoid collisions and to handle dynamic inserts
-     const chartContent = document.getElementById('chartContent');
-     let scrollContainer = chartContent ? chartContent.querySelector('.medical-conditions-scroll') : null;
-     let resultsCount = chartContent ? chartContent.querySelector('.search-results-count') : null;
+  // Prefer scoping to the panel's chartContent to avoid collisions and to handle dynamic inserts
+  const chartContent = document.getElementById('chartContent');
+  let scrollContainer = chartContent ? chartContent.querySelector('.medical-conditions-scroll') : null;
+  // Prefer the header results count if present, otherwise fallback to the older in-search results element
+  let resultsCount = document.getElementById('chartResultsCount') || (chartContent ? chartContent.querySelector('.search-results-count') : null);
 
      // Fallback to global selectors if not found (keeps previous behavior)
      if (!scrollContainer) scrollContainer = document.querySelector('.medical-conditions-scroll');
@@ -1638,20 +1547,35 @@
        // Show filtered conditions
        const conditionsHTML = filteredConditions
          .map(condition => {
-           const RADV_score = condition.details.RADV_score || 0;
-           const code_status = condition.details.code_status || '';
-           const rxHcc = condition.details.rxHcc;
-           const hcc28 = condition.details.hcc28;
-           const isRADV = (code_status === "DOCUMENTED" && (RADV_score > 0 && RADV_score < 4) && (rxHcc?.length > 0 || hcc28?.length > 0));
+             const RADV_score = condition.details.RADV_score || 0;
+             const code_status = condition.details.code_status || '';
+             const rxHcc = condition.details.rxHcc;
+             const hcc28 = condition.details.hcc28;
+             const isRADV = (code_status === "DOCUMENTED" && (RADV_score > 0 && RADV_score < 4) && (rxHcc?.length > 0 || hcc28?.length > 0));
 
-           return `
-         <div class="medical-condition-card" style="${isRADV ? 'border-left: 4px solid #dc2626; border-top: 1px solid #dc2626; border-right: 1px solid #dc2626; border-bottom: 1px solid #dc2626;' : ''}">
+             // Prepare code type badge with explicit coloring for UPGRADE (green) and MISSED (red)
+             const _codeType = (condition.details && condition.details.code_type) ? String(condition.details.code_type) : '';
+             let codeTypeBadge = '';
+             if (_codeType) {
+               const upper = _codeType.toUpperCase();
+               if (upper === 'MISSED') {
+                 // Show MISSED as OPPORTUNITIES in the UI and use the existing .opportunities badge style
+                 codeTypeBadge = `<span class="code-type-badge opportunities">OPPORTUNITIES</span>`;
+               } else if (upper === 'UPGRADE') {
+                 codeTypeBadge = `<span class="code-type-badge" style="background:#d1fae5;color:#065f46;border:1px solid #6ee7b7">${_codeType}</span>`;
+               } else {
+                 codeTypeBadge = `<span class="code-type-badge ${_codeType.toLowerCase()}">${_codeType}</span>`;
+               }
+             }
+
+             return `
+           <div class="medical-condition-card" style="${isRADV ? 'border-left: 4px solid #dc2626; border-top: 1px solid #dc2626; border-right: 1px solid #dc2626; border-bottom: 1px solid #dc2626;' : ''}">
            <!-- Badges Row -->
            <div class="card-badges-row">
              <div class="badge-group">
-               <span class="icd-badge">ICD-10: ${condition.details.icd10}</span>
+               <span class="icd-badge">ICD: ${condition.details.icd10}</span>
                ${condition.details.hcc28?.length > 0
-               ? `<span class="hcc-badge">HCC-28: ${condition.details.hcc28}</span>`
+               ? `<span class="hcc-badge">HCC: ${condition.details.hcc28}</span>`
                : ""
              }
                ${condition.details.rxHcc
@@ -1660,10 +1584,7 @@
              }
              </div>
              <div style="display: flex; align-items: center; gap: 8px;">
-               ${condition.details.code_type
-               ? `<span class="code-type-badge ${condition.details.code_type.toLowerCase()}">${condition.details.code_type}</span>`
-               : ""
-             }
+               ${codeTypeBadge}
                ${isRADV
                ? `<span class="audit-score-icon">Audit: ${RADV_score}</span>`
                : ""
@@ -1680,24 +1601,35 @@
                : '<p class="card-description" style="font-style: italic; color: #9ca3af;">No description available</p>'
              }
 
-           <!-- Clinical Indicators -->
-           <div class="card-info-row">
-             <span class="label">Clinical Indicators:</span>
+           <!-- Clinical Indicators (icon label) -->
+           <div class="card-info-row indicators-row">
+             <span class="label">
+               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-flask-conical w-4 h-4 text-blue-600"><path d="M14 2v6a2 2 0 0 0 .245.96l5.51 10.08A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96l5.51-10.08A2 2 0 0 0 10 8V2"></path><path d="M6.453 15h11.094"></path><path d="M8.5 2h7"></path></svg>
+             </span>
              <span class="value">${condition.clinicalIndicators}</span>
            </div>
 
-           <!-- Code Explanation -->
-           <div class="card-info-row">
-             <span class="label">Code Explanation:</span>
-             <span class="value">${condition.codeExplanation}</span>
-           </div>
+          <!-- Code Explanation (icon label) -->
+          <div class="card-info-row code-explanation-row">
+            <div class="flex-shrink-0 p-1 bg-amber-100 rounded-full">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shield-question w-4 h-4 text-amber-600"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path><path d="M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3"></path><path d="M12 17h.01"></path></svg>
+            </div>
+            <span class="value">${condition.codeExplanation}</span>
+          </div>
 
-           <!-- Note Section -->
-           <div class="card-info-row">
-             <span class="label">Note:</span>
-             <span class="value">${condition.noteText || 'Not available'}</span>
-           </div>
-         </div>
+          <!-- Note Section -->
+          <div class="card-info-row">
+            <span class="label">
+              <button aria-label="add-note" class="note-button" tabindex="0">
+                <!-- left icon -->
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="note-icon" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                <span class="note-text">Add Note</span>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="note-chevron" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+              </button>
+            </span>
+            <span class="value">${condition.noteText || ' '}</span>
+          </div>
+        </div>
        `;
          })
          .join('');
@@ -1705,9 +1637,13 @@
        scrollContainer.innerHTML = conditionsHTML;
      }
 
-     // Update results count
+     // Update results count (show loading state while data is being fetched)
      if (resultsCount) {
-       resultsCount.textContent = `${filteredConditions.length} of ${medicalConditionsData.length} conditions`;
+       if (isChartLoading) {
+         resultsCount.textContent = 'Loading...';
+       } else {
+         resultsCount.textContent = `${filteredConditions.length} of ${medicalConditionsData.length} conditions`;
+       }
      }
    }
 
@@ -1859,12 +1795,15 @@
   function tryAutoLoad() {
     if (hasLoaded) return;
 
-    /* const table = document.querySelector(TABLE_SELECTOR);
+    const table = document.querySelector(TABLE_SELECTOR);
     const ul = document.querySelector(UL_SELECTOR);
-    if (!table || !ul) return; */
+    if (!table || !ul) return;
 
-    const chartNumber = "1233";
-    const patientName = "John doe";
+    const chartNumber = document.querySelector("#chartNumber")?.textContent?.trim();
+    const patientName = document.querySelector("#patientName")?.textContent?.trim();
+
+    // const chartNumber = "89700511";
+    // const patientName = "John doe";
 
     if (chartNumber && patientName) {
       console.log(`🧩 Found patient: ${patientName} (${chartNumber})`);
@@ -1875,7 +1814,9 @@
       createBackdrop();
       createFloatingPanel();
 
-      // Show chart details by default (using static data)
+      // Persist detected member info and show chart details by default
+      currentMemberId = chartNumber;
+      currentMemberName = patientName;
       showChartDetails();
       hasLoaded = true;
     }
