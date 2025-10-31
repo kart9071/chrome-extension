@@ -6,7 +6,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     fetchWithTimeout(
       "https://h4xqr89uik.execute-api.us-east-1.amazonaws.com/dev/",
       { member_id, member_name },
-      10000 // 10 seconds timeout
+      20000 // 10 seconds timeout
     )
       .then((data) => sendResponse({ data }))
       .catch((err) => sendResponse({ error: err.message }));
@@ -18,7 +18,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     fetchWithTimeout(
       "https://sfe5arbv61.execute-api.us-east-1.amazonaws.com/dev",
       { member_id, member_name },
-      10000 // 10 seconds timeout
+      20000 // 10 seconds timeout
     )
       .then((data) => sendResponse({ data }))
       .catch((err) => sendResponse({ error: err.message }));
