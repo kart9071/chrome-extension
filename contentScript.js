@@ -1,6 +1,8 @@
 (() => {
   /* global chrome */
   const FLOATING_DIV_ID = "ct-chart-floating";
+  const TABLE_SELECTOR = "#ctl00_MainContent_ucPatientDetail_dlPatient";
+  const UL_SELECTOR = "#ulReadPatientDetail";
 
   let observer;
   let hasLoaded = false;
