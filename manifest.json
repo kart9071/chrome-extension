@@ -16,7 +16,7 @@
   },
   "action": {
     "default_icon": {
-      "8": "icons/HOM Logo.png"
+      "8": "icons/HOM-icon.png"
       
     },
   "default_title": "CareTracker Button Listener"
