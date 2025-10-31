@@ -1,10 +1,66 @@
 (() => {
+  /* global chrome */
   const TABLE_SELECTOR = "#ctl00_MainContent_ucPatientDetail_dlPatient";
   const UL_SELECTOR = "#ulReadPatientDetail";
   const FLOATING_DIV_ID = "ct-chart-floating";
 
   let observer;
   let hasLoaded = false;
+
+  // Simple HTML escaper for safe insertion into templates
+  function escapeHtml(input) {
+    if (input === null || typeof input === 'undefined') return '';
+    return String(input)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function formatCodeExplanationHtml(raw) {
+    const text = raw || '';
+    if (!text.trim()) return '';
+
+    // Try to split into Type and Suggestion parts (case-insensitive)
+    const suggestionIndex = text.search(/suggestion:/i);
+    let typePart = '';
+    let suggestionPart = '';
+    if (suggestionIndex !== -1) {
+      typePart = text.slice(0, suggestionIndex).trim();
+      suggestionPart = text.slice(suggestionIndex).replace(/suggestion:/i, '').trim();
+    } else {
+      // No explicit 'Suggestion:' label; try to extract a leading 'Type:' if present
+      const typeMatch = text.match(/type:\s*([^\n\r]+)/i);
+      if (typeMatch) {
+        typePart = typeMatch[1].trim();
+        // the rest after the matched segment may be suggestion-like
+        const after = text.slice(typeMatch.index + typeMatch[0].length).trim();
+        if (after) suggestionPart = after;
+      } else {
+        // Fallback: treat whole text as suggestion
+        suggestionPart = text.trim();
+      }
+    }
+
+    // Normalize extracted parts to avoid repeating labels like "Type: Type: ..."
+    typePart = (typePart || '').replace(/^\s*type:\s*/i, '').trim();
+    suggestionPart = (suggestionPart || '').replace(/^\s*suggestion:\s*/i, '').trim();
+
+    // SVG icon used in the template
+    const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shield-question w-4 h-4 text-amber-600"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path><path d="M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3"></path><path d="M12 17h.01"></path></svg>`;
+
+    let html = `
+    <div class="card-info-row code-explanation-row">
+      <div class="flex-shrink-0 p-1 bg-amber-100 rounded-full">${svgIcon}</div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        ${typePart ? `<div><strong>Type:</strong> ${escapeHtml(typePart)}</div>` : ''}
+        ${suggestionPart ? `<div><strong>Suggestion:</strong> ${escapeHtml(suggestionPart)}</div>` : ''}
+      </div>
+    </div>
+  `;
+    return html;
+  }
 
   // State management
   let panelVisible = false;
@@ -79,7 +135,7 @@
        }
 
       .floating-buttons.shifted {
-        right: 30% !important;
+        right: 60% !important;
       }
 
        .floating-icon-btn {
@@ -227,7 +283,7 @@
         position: fixed !important;
         top: 0 !important;
         right: 0 !important;
-        width: 30% !important;
+        width: 60% !important;
         height: 100vh !important;
         background: #f8f9fa !important;
         box-shadow: -4px 0 12px rgba(0, 0, 0, 0.3) !important;
@@ -240,6 +296,18 @@
         display: flex !important;
         flex-direction: column !important;
         overflow: hidden !important;
+      }
+
+      /* Use same width for audit panel as chart details to keep consistent sizing */
+      #ct-chart-floating.audit {
+        width: 60% !important;
+        /* keep anchored to the right */
+        right: 0 !important;
+      }
+
+      /* Move the floating buttons further left when the audit panel is open (match chart width) */
+      .floating-buttons.shifted.audit-shift {
+        right: 60% !important;
       }
 
       #ct-chart-floating.show {
@@ -412,6 +480,31 @@
         min-height: 0 !important;
         height: 100% !important;
         align-content: start !important;
+      }
+
+      /* Scroll container specifically for audit cards so scrollbar appears and size is bounded */
+      .audit-cards-scroll {
+        max-height: calc(100vh - 160px) !important; /* leaves room for header/search */
+        overflow-y: auto !important;
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+        padding: 12px !important;
+      }
+
+      .audit-cards-scroll::-webkit-scrollbar {
+        width: 10px !important;
+      }
+      .audit-cards-scroll::-webkit-scrollbar-track {
+        background: #f1f1f1 !important;
+        border-radius: 6px !important;
+      }
+      .audit-cards-scroll::-webkit-scrollbar-thumb {
+        background: #c1c1c1 !important;
+        border-radius: 6px !important;
+      }
+      .audit-cards-scroll::-webkit-scrollbar-thumb:hover {
+        background: #9e9e9e !important;
       }
 
        /* Custom Scrollbar for Medical Conditions */
@@ -657,18 +750,39 @@
        .audit-table-container {
          width: 100% !important;
          height: 100% !important;
-         padding: 20px !important;
+         padding: 10px !important;
          overflow: auto !important;
          background: #f8f9fa !important;
        }
 
        .audit-table-wrapper {
          width: 100% !important;
-         overflow-x: auto !important;
+         overflow: auto !important;
          margin-top: 10px !important;
          margin-bottom: 5px !important;
          border-radius: 8px !important;
          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+         max-height: calc(100vh - 100px) !important;
+       }
+
+       /* Custom Scrollbar for Audit Table */
+       .audit-table-wrapper::-webkit-scrollbar {
+         width: 10px !important;
+         height: 10px !important;
+       }
+
+       .audit-table-wrapper::-webkit-scrollbar-track {
+         background: #f1f1f1 !important;
+         border-radius: 6px !important;
+       }
+
+       .audit-table-wrapper::-webkit-scrollbar-thumb {
+         background: #c1c1c1 !important;
+         border-radius: 6px !important;
+       }
+
+       .audit-table-wrapper::-webkit-scrollbar-thumb:hover {
+         background: #9e9e9e !important;
        }
 
        .audit-table {
@@ -676,9 +790,9 @@
          border-collapse: collapse !important;
          background: white !important;
          border-radius: 8px !important;
-         overflow: hidden !important;
+         overflow: visible !important;
          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
-         table-layout: fixed !important;
+         table-layout: auto !important;
          min-width: 800px !important;
        }
 
@@ -691,6 +805,7 @@
        }
 
        .audit-table th {
+           background: #1e3ea3 !important;
          padding: 16px 12px !important;
          text-align: left !important;
          font-size: 13px !important;
@@ -698,29 +813,27 @@
          text-transform: uppercase !important;
          letter-spacing: 0.5px !important;
          white-space: nowrap !important;
+         overflow: visible !important;
+         text-overflow: clip !important;
          height: 56px !important;
          vertical-align: middle !important;
          border-bottom: 2px solid rgba(255, 255, 255, 0.2) !important;
          position: relative !important;
+         box-sizing: border-box !important;
+         min-width: fit-content !important;
+         width: auto !important;
+         flex-shrink: 0 !important;
+         word-wrap: normal !important;
+         overflow-wrap: normal !important;
+         hyphens: none !important;
        }
 
        .audit-table tbody tr {
-         transition: background-color 0.2s ease !important;
          border-bottom: 1px solid #e5e7eb !important;
-       }
-
-       .audit-table tbody tr:hover {
-         background: #f8f9fa !important;
-         transform: scale(1.01) !important;
-         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
        }
 
        .audit-table tbody tr:nth-child(even) {
          background: #f9fafb !important;
-       }
-
-       .audit-table tbody tr:nth-child(even):hover {
-         background: #f3f4f6 !important;
        }
 
        .audit-table td {
@@ -733,42 +846,212 @@
          overflow-wrap: break-word !important;
        }
 
-       /* Column Widths */
+       /* Column Widths - Expand button is now child 1 */
        .audit-table th:nth-child(1),
        .audit-table td:nth-child(1) {
-         width: 25% !important;
-         padding-left: 20px !important;
+         width: 40px !important;
+         min-width: 40px !important;
+         max-width: 40px !important;
+         padding: 0 !important;
        }
 
        .audit-table th:nth-child(2),
        .audit-table td:nth-child(2) {
-         width: 12% !important;
+         min-width: 150px !important;
+         width: 150px !important;
        }
 
        .audit-table th:nth-child(3),
        .audit-table td:nth-child(3) {
-         width: 20% !important;
+         min-width: 135px !important;
+         width: 135px !important;
        }
 
        .audit-table th:nth-child(4),
        .audit-table td:nth-child(4) {
-         width: 10% !important;
+         min-width: 135px !important;
+         width: 135px !important;
        }
 
        .audit-table th:nth-child(5),
        .audit-table td:nth-child(5) {
-         width: 12% !important;
+         min-width: 90px !important;
+         width: 90px !important;
        }
 
        .audit-table th:nth-child(6),
        .audit-table td:nth-child(6) {
-         width: 12% !important;
+         min-width: 140px !important;
+         width: 140px !important;
        }
 
        .audit-table th:nth-child(7),
        .audit-table td:nth-child(7) {
-         width: 9% !important;
+         min-width: 110px !important;
+         width: 110px !important;
+       }
+
+       .audit-table th:nth-child(8),
+       .audit-table td:nth-child(8) {
+         min-width: 120px !important;
+         width: 120px !important;
+       }
+
+       .audit-table th:nth-child(9),
+       .audit-table td:nth-child(9) {
+         min-width: 120px !important;
+         width: 120px !important;
+       }
+
+       .audit-table th:nth-child(10),
+       .audit-table td:nth-child(10) {
+         min-width: 160px !important;
+         width: 160px !important;
          padding-right: 20px !important;
+       }
+
+       /* Audit Table Expansion Styles */
+       .audit-expanded-container {
+         background: #fff !important;
+         border: 1px solid #e5e7eb !important;
+         border-radius: 8px !important;
+         padding: 5px 10px !important;
+         width: 100% !important;
+         box-shadow: 0 3px 8px rgba(30, 64, 175, 0.07) !important;
+         margin: 10px !important
+       }
+
+       .audit-expanded-empty {
+         color: #6b7280 !important;
+         font-size: 14px !important;
+         font-style: italic !important;
+         text-align: center !important;
+         padding: 30px 0 !important;
+       }
+
+       .audit-expanded-grid {
+         display: grid !important;
+         gap: 18px 32px !important;
+       }
+
+       @media (max-width:700px) {
+         .audit-expanded-grid {
+           grid-template-columns: 1fr !important;
+           gap: 14px !important;
+         }
+       }
+
+       .audit-detail-row {
+         display: flex !important;
+         flex-direction: row !important;
+         padding-bottom: 6px !important;
+         border-bottom: 1px solid #f3f4f6 !important;
+         margin-bottom: 8px !important;
+         gap: 10px !important;
+       }
+
+       .audit-detail-row:last-child {
+         border-bottom: none !important;
+       }
+
+       .audit-detail-label {
+         min-width: 130px !important;
+         color: #64748b !important;
+         font-weight: 700 !important;
+         font-size: 13px !important;
+         letter-spacing: .03em !important;
+       }
+
+       .audit-detail-value {
+         color: #1e293b !important;
+         font-size: 13px !important;
+         word-break: break-word !important;
+       }
+
+       .expand-col {
+         width: 40px !important;
+         min-width: 40px !important;
+         max-width: 40px !important;
+         text-align: center !important;
+         padding: 0 !important;
+       }
+
+       .expand-btn {
+         background: none !important;
+         border: none !important;
+         cursor: pointer !important;
+         padding: 0 2px !important;
+         outline: none !important;
+         transition: background .13s !important;
+         border-radius: 4px !important;
+       }
+
+       .expand-btn:hover,
+       .expand-btn.expanded {
+         background: #e0e7ef !important;
+       }
+
+       .expand-chevron {
+         transition: transform 0.23s cubic-bezier(.55, .06, .68, .19) !important;
+         font-size: 17px !important;
+         color: #64748b !important;
+       }
+
+       .audit-pn-badge {
+         display: inline-block !important;
+         background: #f3f4f6 !important;
+         border: 1px solid #d1d5db !important;
+         border-radius: 4px !important;
+         padding: 1px 7px !important;
+         margin: 0 2px 2px 0 !important;
+         font-size: 12px !important;
+         color: #334155 !important;
+       }
+
+       .text-center {
+         text-align: center !important;
+       }
+
+       .condition-name-col {
+         font-weight: 700 !important;
+         color: #1e293b !important;
+       }
+
+       /* Audit Table Section */
+       .audit-table-section {
+         flex: 1 !important;
+         overflow-y: auto !important;
+         padding: 5px !important;
+         background: #f8f9fa !important;
+       }
+
+       .audit-expanded-row {
+         background: #f9fafb !important;
+       }
+
+
+       .expanded {
+         background: #f0f9ff !important;
+       }
+
+       @media (max-width:560px) {
+         .audit-expanded-container {
+           padding: 12px 4px !important;
+         }
+
+         .audit-detail-row {
+           flex-direction: column !important;
+           gap: 4px !important;
+         }
+
+         .audit-detail-label {
+           min-width: 0 !important;
+           font-size: 12px !important;
+         }
+
+         .audit-detail-value {
+           font-size: 12px !important;
+         }
        }
 
        /* Sortable Headers */
@@ -873,11 +1156,11 @@
       /* Responsive Design */
       @media (max-width: 1024px) {
         #ct-chart-floating {
-          width: 40% !important;
+          width: 60% !important;
         }
 
         .floating-buttons.shifted {
-          right: 40% !important;
+          right: 60% !important;
         }
       }
 
@@ -988,61 +1271,61 @@
     document.head.appendChild(style);
   }
 
-   // Filter medical conditions based on search term
-   function filterMedicalConditions() {
-     const trimmedSearch = searchTerm.trim();
-     console.log('filterMedicalConditions called with:', trimmedSearch); // Debug log
-     
-     if (!trimmedSearch) {
-       console.log('No search term, returning all conditions'); // Debug log
-       return medicalConditionsData;
-     }
+  // Filter medical conditions based on search term
+  function filterMedicalConditions() {
+    const trimmedSearch = searchTerm.trim();
+    console.log('filterMedicalConditions called with:', trimmedSearch); // Debug log
 
-     const searchLower = trimmedSearch.toLowerCase();
-     const filtered = medicalConditionsData.filter(condition => {
-       const matches = (
-         // Title
-         condition.title.toLowerCase().includes(searchLower) ||
-         // Description
-         (condition.description && condition.description.toLowerCase().includes(searchLower)) ||
-         // Clinical Indicators
-         condition.clinicalIndicators.toLowerCase().includes(searchLower) ||
-         // Code Explanation
-         condition.codeExplanation.toLowerCase().includes(searchLower) ||
-         // Note Text
-         (condition.noteText && condition.noteText.toLowerCase().includes(searchLower)) ||
-         // Documentation
-         (condition.documentation && condition.documentation.toLowerCase().includes(searchLower)) ||
-         // ICD-10 code
-         condition.details.icd10.toLowerCase().includes(searchLower) ||
-         // HCC codes
-         (condition.details.hcc24 && condition.details.hcc24.toString().includes(searchLower)) ||
-         (condition.details.hcc28 && condition.details.hcc28.toString().includes(searchLower)) ||
-         (condition.details.rxHcc && condition.details.rxHcc.toString().includes(searchLower)) ||
-         // Status
-         (condition.details.active ? 'active' : 'inactive').includes(searchLower) ||
-         // Source
-         (condition.details.source && condition.details.source.toLowerCase().includes(searchLower)) ||
-         // Date
-         (condition.details.date && condition.details.date.includes(searchLower)) ||
-         // Additional fields
-         (condition.details.eGFR && condition.details.eGFR.toString().includes(searchLower)) ||
-         (condition.details.bmi && condition.details.bmi.toString().includes(searchLower)) ||
-         (condition.details.encounter && condition.details.encounter.toLowerCase().includes(searchLower)) ||
-         // Code Type
-         (condition.details.code_type && condition.details.code_type.toLowerCase().includes(searchLower))
-       );
-       
-       if (matches) {
-         console.log('Match found for:', condition.title); // Debug log
-       }
-       
-       return matches;
-     });
-     
-     console.log('Total matches found:', filtered.length); // Debug log
-     return filtered;
-   }
+    if (!trimmedSearch) {
+      console.log('No search term, returning all conditions'); // Debug log
+      return medicalConditionsData;
+    }
+
+    const searchLower = trimmedSearch.toLowerCase();
+    const filtered = medicalConditionsData.filter(condition => {
+      const matches = (
+        // Title
+        condition.title.toLowerCase().includes(searchLower) ||
+        // Description
+        (condition.description && condition.description.toLowerCase().includes(searchLower)) ||
+        // Clinical Indicators
+        condition.clinicalIndicators.toLowerCase().includes(searchLower) ||
+        // Code Explanation
+        condition.codeExplanation.toLowerCase().includes(searchLower) ||
+        // Note Text
+        (condition.noteText && condition.noteText.toLowerCase().includes(searchLower)) ||
+        // Documentation
+        (condition.documentation && condition.documentation.toLowerCase().includes(searchLower)) ||
+        // ICD-10 code
+        condition.details.icd10.toLowerCase().includes(searchLower) ||
+        // HCC codes
+        (condition.details.hcc24 && condition.details.hcc24.toString().includes(searchLower)) ||
+        (condition.details.hcc28 && condition.details.hcc28.toString().includes(searchLower)) ||
+        (condition.details.rxHcc && condition.details.rxHcc.toString().includes(searchLower)) ||
+        // Status
+        (condition.details.active ? 'active' : 'inactive').includes(searchLower) ||
+        // Source
+        (condition.details.source && condition.details.source.toLowerCase().includes(searchLower)) ||
+        // Date
+        (condition.details.date && condition.details.date.includes(searchLower)) ||
+        // Additional fields
+        (condition.details.eGFR && condition.details.eGFR.toString().includes(searchLower)) ||
+        (condition.details.bmi && condition.details.bmi.toString().includes(searchLower)) ||
+        (condition.details.encounter && condition.details.encounter.toLowerCase().includes(searchLower)) ||
+        // Code Type
+        (condition.details.code_type && condition.details.code_type.toLowerCase().includes(searchLower))
+      );
+
+      if (matches) {
+        console.log('Match found for:', condition.title); // Debug log
+      }
+
+      return matches;
+    });
+
+    console.log('Total matches found:', filtered.length); // Debug log
+    return filtered;
+  }
 
   // Check if search bar should be shown (more than 6 conditions)
   const showSearchBar = medicalConditionsData.length > 6;
@@ -1089,29 +1372,29 @@
   }
 
 
-   // Sort condition audit data
-   function sortConditionAuditData(key) {
-     console.log('Sorting by:', key); // Debug log
-     currentPage = 1;
-     let direction;
-     if (conditionAuditSortConfig.key === key) {
-       if (conditionAuditSortConfig.direction === 'asc') {
-         direction = 'desc';
-       } else if (conditionAuditSortConfig.direction === 'desc') {
-         direction = null; // Reset
-         conditionAuditSortConfig = { key: null, direction: null };
-         showConditionAuditContent();
-         return;
-       }
-     } else {
-       direction = 'asc';
-     }
-     conditionAuditSortConfig = { key, direction };
-     console.log('Sort config:', conditionAuditSortConfig); // Debug log
-     showConditionAuditContent();
-   }
+  // Sort condition audit data
+  function sortConditionAuditData(key) {
+    console.log('Sorting by:', key); // Debug log
+    currentPage = 1;
+    let direction;
+    if (conditionAuditSortConfig.key === key) {
+      if (conditionAuditSortConfig.direction === 'asc') {
+        direction = 'desc';
+      } else if (conditionAuditSortConfig.direction === 'desc') {
+        direction = null; // Reset
+        conditionAuditSortConfig = { key: null, direction: null };
+        showConditionAuditContent();
+        return;
+      }
+    } else {
+      direction = 'asc';
+    }
+    conditionAuditSortConfig = { key, direction };
+    console.log('Sort config:', conditionAuditSortConfig); // Debug log
+    showConditionAuditContent();
+  }
 
-   // Fetch chart details from the extension service worker
+  // Fetch chart details from the extension service worker
   function fetchChartDetailsFromServiceWorker(memberId, memberName) {
     return new Promise((resolve, reject) => {
       try {
@@ -1165,6 +1448,15 @@
       evidenceStrength: a.evidence_strength || '',
       auditDate: a.audit_date || '',
       auditScore: (typeof a.audit_score !== 'undefined' && a.audit_score !== null) ? a.audit_score : 0,
+      // Make sure we also expose fields that might be used directly
+      documented_condition: a.documented_condition || '',
+      documented_icd_code: a.documented_icd_code || '',
+      accurate_code: a.accurate_code || '',
+      hcc_code: a.hcc_code || '',
+      pn_dates: a.pn_dates || '',
+      evidence_strength: a.evidence_strength || '',
+      audit_date: a.audit_date || '',
+      radv_compliance_score: a.radv_compliance_score || null,
       raw: a
     }));
   }
@@ -1215,7 +1507,7 @@
           active: !!c.isChronic,
           code_type: c.code_status || '',
           RADV_score: c.RADV_score || c.radv_score || 0,
-          code_status: c.code_status || '' ,
+          code_status: c.code_status || '',
           date: c.last_documented_date || null
         },
         description: c.code_explanation || '',
@@ -1237,24 +1529,93 @@
     buttonsDiv.className = 'floating-buttons';
 
     buttonsDiv.innerHTML = `
-      <button class="floating-icon-btn chart-btn" id="chartBtn" data-tooltip="Chart Details">
-        📊
+      <button class="floating-icon-btn chart-btn" id="chartBtn" data-tooltip="Chart Details" aria-label="Chart Details">
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <!-- Gradient Definition -->
+          <defs>
+            <linearGradient id="medicalGradient" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#000000ff"/>
+              <stop offset="100%" stop-color="#070707ff"/>
+            </linearGradient>
+          </defs>
+
+          <!-- Background Square -->
+          <rect width="18" height="18" x="3" y="3" rx="3" stroke="url(#medicalGradient)" stroke-width="2.5" fill="rgba(0, 184, 217, 0.08)" />
+
+          <!-- Chart Lines -->
+          <path d="M9 8h7" stroke="url(#medicalGradient)" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M8 12h6" stroke="url(#medicalGradient)" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M11 16h5" stroke="url(#medicalGradient)" stroke-width="2.5" stroke-linecap="round"/>
+
+          <!-- Optional subtle highlight for a polished look -->
+          <rect width="18" height="18" x="3" y="3" rx="3" stroke="white" stroke-opacity="0.2" stroke-width="1" />
+        </svg>
       </button>
-      <button class="floating-icon-btn condition-audit-btn" id="conditionAuditBtn" data-tooltip="Audit Details Table">
-        📝
+      <button class="floating-icon-btn condition-audit-btn" id="conditionAuditBtn" data-tooltip="Audit Details Table" aria-label="Audit Details">
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+            <defs>
+              <!-- Gradient for clipboard top -->
+              <linearGradient id="clipGradient" x1="0" y1="0" x2="0" y2="6" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#00B8D9"/>
+                <stop offset="100%" stop-color="#0094FF"/>
+              </linearGradient>
+            </defs>
+
+            <!-- Paper background -->
+            <rect x="5" y="4" width="14" height="17" rx="2.5" fill="white" stroke="#CBD5E1" stroke-width="1.8"/>
+
+            <!-- Paper lines -->
+            <line x1="7" y1="9" x2="17" y2="9" stroke="#D1D5DB" stroke-width="1" stroke-linecap="round"/>
+            <line x1="7" y1="12" x2="17" y2="12" stroke="#D1D5DB" stroke-width="1" stroke-linecap="round"/>
+            <line x1="7" y1="15" x2="17" y2="15" stroke="#D1D5DB" stroke-width="1" stroke-linecap="round"/>
+
+            <!-- Clipboard top -->
+            <rect x="8" y="2" width="8" height="4" rx="1" fill="url(#clipGradient)" stroke="#007BFF" stroke-width="1.5"/>
+
+            <!-- Pen (black version) -->
+            <path d="M21.378 12.626a1 1 0 0 0-3.004-3.004l-4.01 4.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"
+                  fill="black" stroke="#222" stroke-width="1.3"/>
+
+            <!-- Highlight pen tip -->
+            <circle cx="18.6" cy="11.1" r="0.7" fill="white" opacity="0.8"/>
+
+            <!-- Subtle shadow for depth -->
+            <rect x="5" y="4" width="14" height="17" rx="2.5" stroke="black" stroke-opacity="0.08" stroke-width="1"/>
+        </svg>
+
       </button>
+
     `;
 
     document.body.appendChild(buttonsDiv);
 
     // Add event listeners
-    document.getElementById('chartBtn').addEventListener('click', showChartDetails);
+    // document.getElementById('chartBtn').addEventListener('click', showChartDetails);
+
+    // this is for the chartBtn
+
+    document.getElementById('chartBtn').addEventListener('click', async () => {
+      // Ensure UI is visible and load chart details using the current member context (tryAutoLoad sets these)
+      showPanel('chart');
+      const chartContent = document.getElementById('chartContent');
+      if (chartContent) chartContent.innerHTML = `<div style="padding:20px">Loading chart details...</div>`;
+      try {
+        // Pass the current cached member context explicitly to the loader
+        await showChartDetails(currentMemberId, currentMemberName);
+      } catch (err) {
+        console.error('Failed to fetch chart details:', err);
+        if (chartContent) chartContent.innerHTML = `<div style="padding:20px;color:#c00">Failed to load chart details: ${err.message}</div>`;
+      }
+    });
     // When user clicks Audit, show panel and fetch audit details via service worker
     document.getElementById('conditionAuditBtn').addEventListener('click', async () => {
       // Ensure UI is visible
       showPanel('conditionAudit');
       const chartContent = document.getElementById('chartContent');
       if (chartContent) chartContent.innerHTML = `<div style="padding:20px">Loading audit details...</div>`;
+      // show loading state in header count area
+      const headerCountEl = document.getElementById('chartResultsCount');
+      if (headerCountEl) headerCountEl.textContent = 'Loading...';
       try {
         await fetchAuditDetails(currentMemberId || '89700511', currentMemberName || 'John Doe');
       } catch (err) {
@@ -1287,11 +1648,23 @@
     const div = document.createElement('div');
     div.id = FLOATING_DIV_ID;
     div.className = 'hidden';
+    const logoUrl = chrome.runtime.getURL('HOM_Logo.svg');
+
+    // make container relative so we can absolutely position the logo above the header
+    div.style.position = 'relative';
 
     div.innerHTML = `
-      <div class="chart-header">
-        <div style="display:flex;flex-direction:column;gap:4px;">
-          <h3 id="chartTitle">HCC Opportunities - John Doe</h3>
+      
+      <div class="chart-header" style="padding-right:84px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+      <div class="panel-top" style="display:flex;padding:6px 12px;justify-content:flex-end;">
+        <!-- logo + label container (right-aligned) -->
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+          <img id="homLogoTop" src="${logoUrl}" alt="HOM" style="width:56px;height:56px;object-fit:contain;border-radius:8px;background:#fff;padding:6px;box-shadow:0 4px 10px rgba(0,0,0,0.14);" />
+          <div style="font-weight:700;font-size:12px;color:#111;line-height:1;transform: translateX(-6px);">AADI 2.0</div>
+        </div>
+      </div>
+        <div style="display:flex;flex-direction:column;gap:4px;flex:1;">
+          <h3 id="chartTitle" style="font-size:15px !important;">HCC Opportunities - John Doe</h3>
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
             <div id="chartSubTitle" class="chart-subtitle"></div>
             <div id="chartResultsCount" class="chart-subtitle" style="text-align:right;"></div>
@@ -1299,17 +1672,18 @@
         </div>
         <button class="close-btn" id="closeChartDiv">✕</button>
       </div>
+      <!-- removed duplicate absolute-positioned logo to avoid duplication -->
       <div id="chartContent"></div>
     `;
-
+    // append and wire close button
     document.body.appendChild(div);
-
-    document.getElementById('closeChartDiv').addEventListener('click', closePanel);
+    const closeBtn = div.querySelector('#closeChartDiv');
+    if (closeBtn) closeBtn.addEventListener('click', closePanel);
     return div;
   }
 
+  // Show/activate the floating panel. type: 'chart' | 'conditionAudit'
   function showPanel(type) {
-
     createFloatingButtons();
     createBackdrop();
     createFloatingPanel();
@@ -1319,22 +1693,34 @@
     const chartBtn = document.getElementById('chartBtn');
     const conditionAuditBtn = document.getElementById('conditionAuditBtn');
 
+    if (!div || !backdrop || !floatingButtons) return;
+
+    // show panel and backdrop
     div.classList.remove('hidden');
     setTimeout(() => div.classList.add('show'), 10);
     backdrop.classList.add('visible');
+
+    // default shifted state
     floatingButtons.classList.add('shifted');
+    // audit-specific adjustments (wider panel and move buttons further left)
+    if (type === 'conditionAudit') {
+      div.classList.add('audit');
+      floatingButtons.classList.add('audit-shift');
+    } else {
+      div.classList.remove('audit');
+      floatingButtons.classList.remove('audit-shift');
+    }
 
     contentType = type;
 
     if (type === 'chart') {
-      chartBtn.classList.add('active');
+      if (chartBtn) chartBtn.classList.add('active');
       if (conditionAuditBtn) {
         conditionAuditBtn.classList.remove('active');
         conditionAuditBtn.setAttribute('data-tooltip', 'Audit Details Table');
       }
-      chartBtn.setAttribute('data-tooltip', 'Active - Chart Details');
+      if (chartBtn) chartBtn.setAttribute('data-tooltip', 'Active - Chart Details');
       document.getElementById('chartTitle').textContent = 'HCC Opportunities - Loading...';
-      // restore subtitle (DOS) if we already have it
       const subEl = document.getElementById('chartSubTitle');
       if (subEl) subEl.textContent = currentDos ? `As on ${currentDos}` : '';
       showChartContent();
@@ -1343,10 +1729,9 @@
         conditionAuditBtn.classList.add('active');
         conditionAuditBtn.setAttribute('data-tooltip', 'Active - Audit Details Table');
       }
-      chartBtn.classList.remove('active');
-      chartBtn.setAttribute('data-tooltip', 'Chart Details');
+      if (chartBtn) chartBtn.classList.remove('active');
+      if (chartBtn) chartBtn.setAttribute('data-tooltip', 'Chart Details');
       document.getElementById('chartTitle').textContent = 'Audit Details Table';
-      // hide subtitle when showing audit table
       const subEl = document.getElementById('chartSubTitle');
       if (subEl) subEl.textContent = '';
       showConditionAuditContent();
@@ -1354,30 +1739,12 @@
   }
 
 
-  async function showChartDetails() {
-    // Try to infer member info from the page when possible
-    //Should be changed to dynamic once the UI integration is done
-    // let memberId = "89700511";
-    // let memberName = 'fdsfds';
-    const table = document.querySelector(TABLE_SELECTOR);
-    const ul = document.querySelector(UL_SELECTOR);
-    if (!table || !ul) return;
-
-    const memberId = document.querySelector("#chartNumber")?.textContent?.trim();
-    const memberName = document.querySelector("#patientName")?.textContent?.trim();
-    // try {
-    //   const ul = document.querySelector(UL_SELECTOR);
-    //   if (ul) {
-    //     memberName = ul.innerText.trim().split('\n')[0] || '';
-    //   }
-    //   // fallback: try table selector
-    //   if (!memberName) {
-    //     const tbl = document.querySelector(TABLE_SELECTOR);
-    //     if (tbl) memberName = tbl.innerText.trim().split('\n')[0] || '';
-    //   }
-    // } catch (e) {
-    //   // ignore parsing errors
-    // }
+  async function showChartDetails(memberIdArg, memberNameArg) {
+    // Accept optional memberId/memberName arguments. If not provided, fall back to the
+    // cached `currentMemberId`/`currentMemberName` (set by tryAutoLoad) and lastly try to
+    // infer values from the page DOM.
+    let memberId = memberIdArg || null;
+    let memberName = memberNameArg || '';
 
     // Show loading UI while fetching
     showPanel('chart');
@@ -1398,14 +1765,14 @@
       const payload = apiData && apiData.data ? apiData.data : apiData;
       const apiConditions = payload && payload.medical_conditions ? payload.medical_conditions : [];
 
-      
+
       const mapped = mapApiMedicalConditions(apiConditions);
 
 
-  // Replace medicalConditionsData contents with mapped results
+      // Replace medicalConditionsData contents with mapped results
       medicalConditionsData.length = 0;
       Array.prototype.push.apply(medicalConditionsData, mapped);
-  isChartLoading = false;
+      isChartLoading = false;
       console.log("updated the medicalConditionsData:", medicalConditionsData);
       // Update title if member info available
       if (payload && payload.member) {
@@ -1442,10 +1809,6 @@
     }
   }
 
-  function showConditionAuditTable() {
-    showPanel('conditionAudit');
-  }
-
   function closePanel() {
     const div = document.getElementById(FLOATING_DIV_ID);
     const backdrop = document.getElementById('backdrop');
@@ -1456,6 +1819,9 @@
     div.classList.remove('show');
     backdrop.classList.remove('visible');
     floatingButtons.classList.remove('shifted');
+    // remove audit-specific classes when closing
+    div.classList.remove('audit');
+    floatingButtons.classList.remove('audit-shift');
     chartBtn.classList.remove('active');
     if (conditionAuditBtn) {
       conditionAuditBtn.classList.remove('active');
@@ -1498,43 +1864,43 @@
     updateChartContent();
   }
 
-   function updateChartContent() {
-     console.log('updateChartContent called with searchTerm:', searchTerm); // Debug log
-     const filteredConditions = filterMedicalConditions();
-     console.log('Filtered conditions count:', filteredConditions.length); // Debug log
+  function updateChartContent() {
+    console.log('updateChartContent called with searchTerm:', searchTerm); // Debug log
+    const filteredConditions = filterMedicalConditions();
+    console.log('Filtered conditions count:', filteredConditions.length); // Debug log
 
-  // Prefer scoping to the panel's chartContent to avoid collisions and to handle dynamic inserts
-  const chartContent = document.getElementById('chartContent');
-  let scrollContainer = chartContent ? chartContent.querySelector('.medical-conditions-scroll') : null;
-  // Prefer the header results count if present, otherwise fallback to the older in-search results element
-  let resultsCount = document.getElementById('chartResultsCount') || (chartContent ? chartContent.querySelector('.search-results-count') : null);
+    // Prefer scoping to the panel's chartContent to avoid collisions and to handle dynamic inserts
+    const chartContent = document.getElementById('chartContent');
+    let scrollContainer = chartContent ? chartContent.querySelector('.medical-conditions-scroll') : null;
+    // Prefer the header results count if present, otherwise fallback to the older in-search results element
+    let resultsCount = document.getElementById('chartResultsCount') || (chartContent ? chartContent.querySelector('.search-results-count') : null);
 
-     // Fallback to global selectors if not found (keeps previous behavior)
-     if (!scrollContainer) scrollContainer = document.querySelector('.medical-conditions-scroll');
-     if (!resultsCount) resultsCount = document.querySelector('.search-results-count');
+    // Fallback to global selectors if not found (keeps previous behavior)
+    if (!scrollContainer) scrollContainer = document.querySelector('.medical-conditions-scroll');
+    if (!resultsCount) resultsCount = document.querySelector('.search-results-count');
 
-     console.log('Scroll container found:', !!scrollContainer); // Debug log
-     console.log('Results count element found:', !!resultsCount); // Debug log
+    console.log('Scroll container found:', !!scrollContainer); // Debug log
+    console.log('Results count element found:', !!resultsCount); // Debug log
 
-     // If not found, attempt to (re)create the chart content structure and re-query
-     if (!scrollContainer || !resultsCount) {
-       console.warn('Scroll container or results count not found, recreating chart content structure.');
-       showChartContent();
-       // re-query after ensuring structure exists
-       const newChartContent = document.getElementById('chartContent');
-       scrollContainer = newChartContent ? newChartContent.querySelector('.medical-conditions-scroll') : scrollContainer;
-       resultsCount = newChartContent ? newChartContent.querySelector('.search-results-count') : resultsCount;
-       console.log('After recreate - Scroll container found:', !!scrollContainer, 'Results count found:', !!resultsCount);
-     }
+    // If not found, attempt to (re)create the chart content structure and re-query
+    if (!scrollContainer || !resultsCount) {
+      console.warn('Scroll container or results count not found, recreating chart content structure.');
+      showChartContent();
+      // re-query after ensuring structure exists
+      const newChartContent = document.getElementById('chartContent');
+      scrollContainer = newChartContent ? newChartContent.querySelector('.medical-conditions-scroll') : scrollContainer;
+      resultsCount = newChartContent ? newChartContent.querySelector('.search-results-count') : resultsCount;
+      console.log('After recreate - Scroll container found:', !!scrollContainer, 'Results count found:', !!resultsCount);
+    }
 
-     if (!scrollContainer) {
-       console.error('Scroll container still not found! Aborting update.'); // Debug log
-       return;
-     }
+    if (!scrollContainer) {
+      console.error('Scroll container still not found! Aborting update.'); // Debug log
+      return;
+    }
 
-     if (filteredConditions.length === 0 && searchTerm.trim()) {
-       // Show no results UI
-       scrollContainer.innerHTML = `
+    if (filteredConditions.length === 0 && searchTerm.trim()) {
+      // Show no results UI
+      scrollContainer.innerHTML = `
          <div style="text-align: center; padding: 40px 20px; height: 60px; font-size: 14px; color: #6c757d; font-style: italic; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;">
            <div style="font-size: 24px;">🔍</div>
            <div>No conditions found</div>
@@ -1543,63 +1909,57 @@
            </div>
          </div>
        `;
-     } else {
-       // Show filtered conditions
-       const conditionsHTML = filteredConditions
-         .map(condition => {
-             const RADV_score = condition.details.RADV_score || 0;
-             const code_status = condition.details.code_status || '';
-             const rxHcc = condition.details.rxHcc;
-             const hcc28 = condition.details.hcc28;
-             const isRADV = (code_status === "DOCUMENTED" && (RADV_score > 0 && RADV_score < 4) && (rxHcc?.length > 0 || hcc28?.length > 0));
+    } else {
+      // Show filtered conditions
+      const conditionsHTML = filteredConditions
+        .map(condition => {
+          const RADV_score = condition.details.RADV_score || 0;
+          const code_status = condition.details.code_status || '';
+          const rxHcc = condition.details.rxHcc;
+          const hcc28 = condition.details.hcc28;
+          const isRADV = (code_status === "DOCUMENTED" && (RADV_score > 0 && RADV_score < 4) && (rxHcc?.length > 0 || hcc28?.length > 0));
 
-             // Prepare code type badge with explicit coloring for UPGRADE (green) and MISSED (red)
-             const _codeType = (condition.details && condition.details.code_type) ? String(condition.details.code_type) : '';
-             let codeTypeBadge = '';
-             if (_codeType) {
-               const upper = _codeType.toUpperCase();
-               if (upper === 'MISSED') {
-                 // Show MISSED as OPPORTUNITIES in the UI and use the existing .opportunities badge style
-                 codeTypeBadge = `<span class="code-type-badge opportunities">OPPORTUNITIES</span>`;
-               } else if (upper === 'UPGRADE') {
-                 codeTypeBadge = `<span class="code-type-badge" style="background:#d1fae5;color:#065f46;border:1px solid #6ee7b7">${_codeType}</span>`;
-               } else {
-                 codeTypeBadge = `<span class="code-type-badge ${_codeType.toLowerCase()}">${_codeType}</span>`;
-               }
-             }
+          // Prepare code type badge with explicit coloring for UPGRADE (green) and MISSED (red)
+          const _codeType = (condition.details && condition.details.code_type) ? String(condition.details.code_type) : '';
+          let codeTypeBadge = '';
+          if (_codeType) {
+            const upper = _codeType.toUpperCase();
+            if (upper === 'MISSED') {
+              // Show MISSED as OPPORTUNITIES in the UI and use the existing .opportunities badge style
+              codeTypeBadge = `<span class="code-type-badge opportunities">OPPORTUNITIES</span>`;
+            } else if (upper === 'UPGRADE') {
+              codeTypeBadge = `<span class="code-type-badge" style="background:#d1fae5;color:#065f46;border:1px solid #6ee7b7">${_codeType}</span>`;
+            } else {
+              codeTypeBadge = `<span class="code-type-badge ${_codeType.toLowerCase()}">${_codeType}</span>`;
+            }
+          }
 
-             return `
+          return `
            <div class="medical-condition-card" style="${isRADV ? 'border-left: 4px solid #dc2626; border-top: 1px solid #dc2626; border-right: 1px solid #dc2626; border-bottom: 1px solid #dc2626;' : ''}">
            <!-- Badges Row -->
            <div class="card-badges-row">
              <div class="badge-group">
                <span class="icd-badge">ICD: ${condition.details.icd10}</span>
                ${condition.details.hcc28?.length > 0
-               ? `<span class="hcc-badge">HCC: ${condition.details.hcc28}</span>`
-               : ""
-             }
+              ? `<span class="hcc-badge">HCC: ${condition.details.hcc28}</span>`
+              : ""
+            }
                ${condition.details.rxHcc
-               ? `<span class="rx-hcc-badge">Rx-HCC: ${condition.details.rxHcc}</span>`
-               : ""
-             }
+              ? `<span class="rx-hcc-badge">Rx-HCC: ${condition.details.rxHcc}</span>`
+              : ""
+            }
              </div>
              <div style="display: flex; align-items: center; gap: 8px;">
                ${codeTypeBadge}
                ${isRADV
-               ? `<span class="audit-score-icon">Audit: ${RADV_score}</span>`
-               : ""
-             }
+              ? `<span class="audit-score-icon">Audit: ${RADV_score}</span>`
+              : ""
+            }
              </div>
            </div>
 
            <!-- Title -->
            <h5 class="card-title" style="${isRADV ? 'color: #dc2626;' : ''}">${condition.title}</h5>
-
-           <!-- Description Paragraph -->
-           ${condition.description
-               ? `<p class="card-description">${condition.description}</p>`
-               : '<p class="card-description" style="font-style: italic; color: #9ca3af;">No description available</p>'
-             }
 
            <!-- Clinical Indicators (icon label) -->
            <div class="card-info-row indicators-row">
@@ -1610,12 +1970,7 @@
            </div>
 
           <!-- Code Explanation (icon label) -->
-          <div class="card-info-row code-explanation-row">
-            <div class="flex-shrink-0 p-1 bg-amber-100 rounded-full">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shield-question w-4 h-4 text-amber-600"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path><path d="M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3"></path><path d="M12 17h.01"></path></svg>
-            </div>
-            <span class="value">${condition.codeExplanation}</span>
-          </div>
+          ${formatCodeExplanationHtml((condition.codeExplanation && condition.codeExplanation.trim()) ? condition.codeExplanation : (condition.description || ''))}
 
           <!-- Note Section -->
           <div class="card-info-row">
@@ -1623,73 +1978,137 @@
               <button aria-label="add-note" class="note-button" tabindex="0">
                 <!-- left icon -->
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="note-icon" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-                <span class="note-text">Add Note</span>
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="note-chevron" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+                <span class="note-text">Notes</span>
               </button>
             </span>
-            <span class="value">${condition.noteText || ' '}</span>
+            <span class="value" style="display:block;transform: translateY(10px);">${condition.noteText || ' '}</span>
           </div>
         </div>
        `;
-         })
-         .join('');
+        })
+        .join('');
 
-       scrollContainer.innerHTML = conditionsHTML;
-     }
+      scrollContainer.innerHTML = conditionsHTML;
+    }
 
-     // Update results count (show loading state while data is being fetched)
-     if (resultsCount) {
-       if (isChartLoading) {
-         resultsCount.textContent = 'Loading...';
-       } else {
-         resultsCount.textContent = `${filteredConditions.length} of ${medicalConditionsData.length} conditions`;
-       }
-     }
-   }
+    // Update results count (show loading state while data is being fetched)
+    if (resultsCount) {
+      if (isChartLoading) {
+        resultsCount.textContent = 'Loading...';
+      } else {
+        resultsCount.textContent = `${medicalConditionsData.length} conditions`;
+      }
+    }
+  }
 
-   function handleSearch(value) {
-     searchTerm = value;
-     console.log('Search term updated:', searchTerm); // Debug log
-     console.log('Current contentType:', contentType); // Debug log
-     
-     // Always update chart content when searching
-     updateChartContent();
-     
-     if (contentType === 'chart') {
-       const input = document.querySelector('.search-input');
-       const isFocused = document.activeElement === input;
-       // Refocus the input if it was focused before
-       setTimeout(() => {
-         const newInput = document.querySelector('.search-input');
-         if (newInput && isFocused) {
-           newInput.focus();
-           // Restore cursor position
-           newInput.setSelectionRange(value.length, value.length);
-         }
-       }, 0);
-     }
-   }
+  function handleSearch(value) {
+    searchTerm = value;
+    console.log('Search term updated:', searchTerm); // Debug log
+    console.log('Current contentType:', contentType); // Debug log
+
+    // Always update chart content when searching
+    updateChartContent();
+
+    if (contentType === 'chart') {
+      const input = document.querySelector('.search-input');
+      const isFocused = document.activeElement === input;
+      // Refocus the input if it was focused before
+      setTimeout(() => {
+        const newInput = document.querySelector('.search-input');
+        if (newInput && isFocused) {
+          newInput.focus();
+          // Restore cursor position
+          newInput.setSelectionRange(value.length, value.length);
+        }
+      }, 0);
+    }
+  }
 
 
-   function handleConditionAuditSearch(value) {
-     conditionAuditSearchTerm = value;
-     console.log('Condition audit search term updated:', conditionAuditSearchTerm); // Debug log
-     if (contentType === 'conditionAudit') {
-       const input = document.querySelector('.search-input');
-       const isFocused = document.activeElement === input;
-       showConditionAuditContent();
-       // Refocus the input if it was focused before
-       setTimeout(() => {
-         const newInput = document.querySelector('.search-input');
-         if (newInput && isFocused) {
-           newInput.focus();
-           // Restore cursor position
-           newInput.setSelectionRange(value.length, value.length);
-         }
-       }, 0);
-     }
-   }
+  function handleConditionAuditSearch(value) {
+    conditionAuditSearchTerm = value;
+    console.log('Condition audit search term updated:', conditionAuditSearchTerm); // Debug log
+    if (contentType === 'conditionAudit') {
+      const input = document.querySelector('.search-input');
+      const isFocused = document.activeElement === input;
+      showConditionAuditContent();
+      // Refocus the input if it was focused before
+      setTimeout(() => {
+        const newInput = document.querySelector('.search-input');
+        if (newInput && isFocused) {
+          newInput.focus();
+          // Restore cursor position
+          newInput.setSelectionRange(value.length, value.length);
+        }
+      }, 0);
+    }
+  }
 
+
+  // Helper function to render expanded row details
+  function renderExpandedAuditDetails(row) {
+    const raw = row.raw || {};
+    const details = [
+      { label: 'RADV Concerns', value: raw.radv_concerns },
+      { label: 'Diagnosis Criteria Gaps', value: raw.diag_criteria_gaps },
+      { label: 'CI Gaps', value: raw.ci_gaps },
+      { label: 'Contradictory Evidence', value: raw.contradictory_evidence },
+      { label: 'Rationale', value: raw.rationale },
+      { label: 'Misclassification Potential', value: raw.miscls_potential },
+      { label: 'Audit Score', value: row.auditScore },
+      { label: 'RADV Compliance Score', value: raw.radv_compliance_score },
+      { label: 'RADV Rejection Score', value: raw.radv_rejection_score },
+    ];
+
+    const validDetails = details.filter(item =>
+      item.value !== undefined && item.value !== null && String(item.value).trim() !== '' && String(item.value).trim() !== '-'
+    );
+
+    if (validDetails.length === 0) {
+      return '<div class="audit-expanded-empty">No additional audit details available.</div>';
+    }
+
+    return `
+      <div class="audit-expanded-grid">
+        ${validDetails.map(item => `
+          <div class="audit-detail-row">
+            <div class="audit-detail-label">${item.label}</div>
+            <div class="audit-detail-value">${escapeHtml(String(item.value))}</div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  // Helper function to render PN dates as badges
+  function renderPnDates(pnDates) {
+    if (!pnDates) return '<span style="color:#9ca3af;">-</span>';
+    const dates = String(pnDates).split(/[,;|]/).filter(Boolean);
+    return dates.map(d => `<span class="audit-pn-badge">${escapeHtml(d.trim())}</span>`).join('');
+  }
+
+  // Global expanded rows state
+  window.expandedAuditRows = window.expandedAuditRows || new Set();
+
+  // Toggle expand handler
+  window.toggleAuditRowExpand = function (rowId) {
+    console.log('toggleAuditRowExpand called with rowId:', rowId);
+    const idStr = String(rowId);
+    // Ensure expandedAuditRows exists
+    if (!window.expandedAuditRows) {
+      window.expandedAuditRows = new Set();
+    }
+    console.log('Current expandedAuditRows before toggle:', Array.from(window.expandedAuditRows));
+    if (window.expandedAuditRows.has(idStr)) {
+      window.expandedAuditRows.delete(idStr);
+      console.log('Collapsed row:', idStr);
+    } else {
+      window.expandedAuditRows.add(idStr);
+      console.log('Expanded row:', idStr);
+    }
+    console.log('Current expandedAuditRows after toggle:', Array.from(window.expandedAuditRows));
+    showConditionAuditContent();
+  };
 
   function showConditionAuditContent() {
     // Filter data first
@@ -1708,86 +2127,117 @@
     }
 
     const chartContent = document.getElementById('chartContent');
+    console.log('showConditionAuditContent - expandedAuditRows:', window.expandedAuditRows ? Array.from(window.expandedAuditRows) : 'undefined');
+    const tableRows = sortedData.map((row, i) => {
+      const rowId = String(row.id || i);
+      const isExpanded = window.expandedAuditRows && window.expandedAuditRows.has(rowId);
+      console.log(`Row ${rowId} isExpanded:`, isExpanded);
+      const raw = row.raw || {};
+      const pnDates = row.pn_dates || raw.pn_dates || '';
+      const documentedCode = row.documented_icd_code || raw.documented_icd_code || row.accurateCode || '';
+      const suggestedCode = row.accurate_code || raw.accurate_code || '';
+      const hccCode = row.hcc_code || row.hccCode || '';
+      const evidenceStrength = row.evidence_strength || row.evidenceStrength || '';
+      const radvDate = row.audit_date || row.auditDate || '';
+      const radvScore = row.radv_compliance_score || raw.radv_compliance_score || row.auditScore || '';
+      const initialQualityValue = raw.initial_quality || row.initial_quality;
+      const initialScore = initialQualityValue !== undefined && initialQualityValue !== null && initialQualityValue !== '' ? Number(initialQualityValue).toFixed(2) : '';
+
+      return `
+        <tr class="${isExpanded ? 'expanded' : ''}">
+          <td class="expand-col">
+            <button class="expand-btn ${isExpanded ? 'expanded' : ''}" onclick="window.toggleAuditRowExpand('${rowId}')" aria-label="${isExpanded ? 'Collapse' : 'Expand'} row">
+              <span class="expand-chevron" style="display:inline-block;transition:transform 0.2s;transform:${isExpanded ? 'rotate(180deg)' : 'rotate(0deg)'}">▼</span>
+            </button>
+          </td>
+          <td class="condition-name-col">${escapeHtml(row.conditionName || row.documented_condition || '')}</td>
+          <td class="text-center">${escapeHtml(documentedCode)}</td>
+          <td class="text-center">${escapeHtml(suggestedCode)}</td>
+          <td class="text-center">${escapeHtml(hccCode)}</td>
+          <td class="text-center">${renderPnDates(pnDates)}</td>
+          <td>${escapeHtml(evidenceStrength)}</td>
+          <td class="text-center">${escapeHtml(radvDate)}</td>
+          <td class="text-center">${escapeHtml(String(radvScore))}</td>
+          <td class="text-center">${escapeHtml(String(initialScore))}</td>
+        </tr>
+        ${isExpanded ? `
+        <tr class="audit-expanded-row">
+          <td colspan="10">
+            <div class="audit-expanded-container">
+              ${renderExpandedAuditDetails(row)}
+            </div>
+          </td>
+        </tr>
+        ` : ''}
+      `;
+    }).join('');
+
+    // Render audit table
     chartContent.innerHTML = `
-      <div class="audit-table-container">
-        <!-- Condition Audit Table Search -->
-         <div class="search-container">
-           <input
-             type="text"
-             placeholder="Search by condition name, accurate code, HCC code, evidence strength..."
-             value="${conditionAuditSearchTerm}"
-             oninput="window.handleConditionAuditSearch(this.value)"
-             class="search-input"
-           />
-          <div class="search-results-count">
-            ${filteredData.length} of ${conditionAuditData.length} conditions
+      <div class="audit-table-section">
+        <div class="audit-table-container">
+          <div class="audit-table-wrapper">
+            ${sortedData.length === 0 ?
+        `<div style="text-align: center; padding: 40px 20px; height: 60px; font-size: 14px; color: #6c757d; font-style: italic; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;">
+                  <div style="font-size: 24px;">🔍</div>
+                  <div>No audit records found</div>
+               </div>` :
+        `<table class="audit-table">
+                <thead>
+                  <tr>
+                    <th></th>
+                    <th>Condition Name</th>
+                    <th>Documented Code</th>
+                    <th>Suggested Code</th>
+                    <th>HCC</th>
+                    <th>PN DOS</th>
+                    <th>Evidence</th>
+                    <th>RADV Date</th>
+                    <th>RADV Score</th>
+                    <th>Initial Quality Score</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${tableRows}
+                </tbody>
+              </table>`
+      }
           </div>
-        </div>
-        <div class="audit-table-wrapper">
-          ${sortedData.length === 0 && conditionAuditSearchTerm.trim() ? 
-            `<div style="text-align: center; padding: 40px 20px; height: 60px; font-size: 14px; color: #6c757d; font-style: italic; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;">
-              <div style="font-size: 24px;">🔍</div>
-              <div>No audit records found</div>
-              <div style="font-size: 12px; color: #9ca3af;">
-                No records match your search for "<strong>${conditionAuditSearchTerm}</strong>"
-              </div>
-            </div>` : 
-            `<table class="audit-table">
-              <thead>
-                 <tr>
-                   <th onclick="window.sortConditionAuditData('conditionName')" class="sortable">
-                     <span>Condition Name</span> ${renderConditionAuditSortIcon('conditionName')}
-                   </th>
-                   <th onclick="window.sortConditionAuditData('accurateCode')" class="sortable">
-                     <span>Accurate Code</span> ${renderConditionAuditSortIcon('accurateCode')}
-                   </th>
-                   <th class="sortable" style="cursor: default;">
-                     <span>Progress notes</span>
-                   </th>
-                   <th onclick="window.sortConditionAuditData('hccCode')" class="sortable">
-                     <span>HCC Code</span> ${renderConditionAuditSortIcon('hccCode')}
-                   </th>
-                   <th onclick="window.sortConditionAuditData('evidenceStrength')" class="sortable">
-                     <span>Evidence Strength</span> ${renderConditionAuditSortIcon('evidenceStrength')}
-                   </th>
-                   <th onclick="window.sortConditionAuditData('auditDate')" class="sortable">
-                     <span>Audit Date</span> ${renderConditionAuditSortIcon('auditDate')}
-                   </th>
-                   <th onclick="window.sortConditionAuditData('auditScore')" class="sortable">
-                     <span>Audit Score</span> ${renderConditionAuditSortIcon('auditScore')}
-                   </th>
-                 </tr>
-              </thead>
-              <tbody>
-                ${sortedData
-        .map(row => `
-                      <tr>
-                        <td>${row.conditionName}</td>
-                        <td>${row.accurateCode}</td>
-                        <td>
-                          <div style="display: flex; flex-wrap: wrap; gap: 4px;">
-                            ${row.progressNotes.map((note, index) => `
-                              <button 
-                                style="padding: 4px 8px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; cursor: pointer; font-size: 13px;"
-                              >
-                                ${note}
-                              </button>
-                            `).join('')}
-                          </div>
-                        </td>
-                        <td>${row.hccCode}</td>
-                        <td>${row.evidenceStrength}</td>
-                        <td>${row.auditDate || ''}</td>
-                        <td>${row.auditScore}</td>
-                      </tr>
-                    `)
-        .join('')}
-              </tbody>
-            </table>`
-          }
         </div>
       </div>
     `;
+
+    // Update header results count for audit view
+    try {
+      const resultsEl = document.getElementById('chartResultsCount');
+      if (resultsEl) resultsEl.textContent = `${sortedData.length} records`;
+    } catch (e) {
+      console.warn('Failed to update chartResultsCount for audit view', e);
+    }
+
+    // Add event delegation for expand buttons after rendering
+    setTimeout(() => {
+      const expandButtons = chartContent.querySelectorAll('.expand-btn');
+      console.log('Found expand buttons:', expandButtons.length);
+      expandButtons.forEach((btn, index) => {
+        const onclickAttr = btn.getAttribute('onclick');
+        console.log(`Button ${index} onclick:`, onclickAttr);
+        if (onclickAttr && onclickAttr.includes('toggleAuditRowExpand')) {
+          // Extract the rowId from the onclick attribute
+          const match = onclickAttr.match(/'([^']+)'/);
+          if (match) {
+            const rowId = match[1];
+            console.log('Adding click listener for rowId:', rowId);
+            btn.addEventListener('click', function (e) {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('Button clicked for rowId:', rowId);
+              window.toggleAuditRowExpand(rowId);
+            });
+          }
+        }
+      });
+    }, 0);
   }
 
 
@@ -1802,7 +2252,10 @@
     const chartNumber = document.querySelector("#chartNumber")?.textContent?.trim();
     const patientName = document.querySelector("#patientName")?.textContent?.trim();
 
-    // const chartNumber = "89700511";
+    // const chartNumber = window.prompt("Enter the chart Number");
+    // const patientName = window.prompt("Enter the patient Name");
+
+    // const chartNumber = "71519763";
     // const patientName = "John doe";
 
     if (chartNumber && patientName) {
@@ -1817,16 +2270,16 @@
       // Persist detected member info and show chart details by default
       currentMemberId = chartNumber;
       currentMemberName = patientName;
-      showChartDetails();
+      // showChartDetails();
       hasLoaded = true;
     }
   }
 
-   // Make functions globally available for onclick handlers
-   window.handleSearch = handleSearch;
-   window.handleConditionAuditSearch = handleConditionAuditSearch;
-   window.sortConditionAuditData = sortConditionAuditData;
-   window.renderConditionAuditSortIcon = renderConditionAuditSortIcon;
+  // Make functions globally available for onclick handlers
+  window.handleSearch = handleSearch;
+  window.handleConditionAuditSearch = handleConditionAuditSearch;
+  window.sortConditionAuditData = sortConditionAuditData;
+  window.renderConditionAuditSortIcon = renderConditionAuditSortIcon;
 
   // 🧠 Observe DOM changes
   observer = new MutationObserver(() => tryAutoLoad());
