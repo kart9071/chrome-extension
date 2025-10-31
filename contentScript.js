@@ -1,7 +1,5 @@
 (() => {
   /* global chrome */
-  const TABLE_SELECTOR = "#ctl00_MainContent_ucPatientDetail_dlPatient";
-  const UL_SELECTOR = "#ulReadPatientDetail";
   const FLOATING_DIV_ID = "ct-chart-floating";
 
   let observer;
@@ -63,35 +61,18 @@
   }
 
   // State management
-  let panelVisible = false;
-  let panelShow = false;
-  let backdropVisible = false;
-  let isChartActive = false;
-  let isConditionAuditActive = false;
   let contentType = 'chart';
   let searchTerm = '';
   let conditionAuditSearchTerm = '';
-  let buttonsShifted = false;
-  let currentPage = 1;
   let conditionAuditSortConfig = { key: null, direction: 'asc' };
-  const itemsPerPage = 20;
-
-  let isAuditTableActive = false;
-  let auditSearchTerm = '';
-  let sortConfig = { key: null, direction: 'asc' };
 
   // current member context (used for API calls)
   let currentMemberId = null;
   let currentMemberName = null;
   let currentDos = null; // formatted DOS (date of service) to show in UI
   let isChartLoading = false;
-
-  console.log("🔍 CareTracker extension: auto chart details loader running.");
-
   // Medical Conditions Data (populated from API)
   const medicalConditionsData = [];
-
-
   // Condition Audit Table Data (populated from API)
   let conditionAuditData = [];
 
@@ -135,7 +116,7 @@
        }
 
       .floating-buttons.shifted {
-        right: 60% !important;
+        right: 50% !important;
       }
 
        .floating-icon-btn {
@@ -283,7 +264,7 @@
         position: fixed !important;
         top: 0 !important;
         right: 0 !important;
-        width: 60% !important;
+        width: 50% !important;
         height: 100vh !important;
         background: #f8f9fa !important;
         box-shadow: -4px 0 12px rgba(0, 0, 0, 0.3) !important;
@@ -300,14 +281,14 @@
 
       /* Use same width for audit panel as chart details to keep consistent sizing */
       #ct-chart-floating.audit {
-        width: 60% !important;
+        width: 50% !important;
         /* keep anchored to the right */
         right: 0 !important;
       }
 
       /* Move the floating buttons further left when the audit panel is open (match chart width) */
       .floating-buttons.shifted.audit-shift {
-        right: 60% !important;
+        right: 50% !important;
       }
 
       #ct-chart-floating.show {
@@ -319,7 +300,8 @@
          justify-content: space-between !important;
          align-items: center !important;
          padding: 12px 20px !important;
-         background: #fff !important;
+         /* make header background transparent per user request */
+         background: transparent !important;
          border-bottom: 1px solid #e0e0e0 !important;
          flex-shrink: 0 !important;
        }
@@ -701,8 +683,7 @@
       .bg-amber-100 { --tw-bg-opacity: 1 !important; background-color: rgb(254 243 199 / var(--tw-bg-opacity, 1)) !important; }
       .rounded-full { border-radius: 9999px !important; }
       .flex-shrink-0, .shrink-0 { flex-shrink: 0 !important; }
-      .text-amber-600 { --tw-text-opacity: 1 !important; color: rgb(217 119 6 / var(--tw-text-opacity, 1)) !important; }
-      .text-amber-600 { --tw-text-opacity: 1 !important; color: rgb(217 119 6 / var(--tw-text-opacity, 1)) !important; }
+  .text-amber-600 { --tw-text-opacity: 1 !important; color: rgb(217 119 6 / var(--tw-text-opacity, 1)) !important; }
 
       /* Shared Note / action-button used as a label for card rows (compact, icon + text + chevron) */
       .note-button {
@@ -793,7 +774,9 @@
          overflow: visible !important;
          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
          table-layout: auto !important;
-         min-width: 800px !important;
+         /* reduce the table min width slightly to make it less wide */
+         min-width: 680px !important;
+         max-width: 100% !important;
        }
 
        .audit-table thead {
@@ -806,9 +789,9 @@
 
        .audit-table th {
            background: #1e3ea3 !important;
-         padding: 16px 12px !important;
+         padding: 10px 8px !important;
          text-align: left !important;
-         font-size: 13px !important;
+         font-size: 12px !important;
          font-weight: 700 !important;
          text-transform: uppercase !important;
          letter-spacing: 0.5px !important;
@@ -837,8 +820,8 @@
        }
 
        .audit-table td {
-         padding: 14px 12px !important;
-         font-size: 13px !important;
+         padding: 8px 8px !important;
+         font-size: 12px !important;
          color: #374151 !important;
          border-bottom: 1px solid #e5e7eb !important;
          vertical-align: middle !important;
@@ -857,38 +840,38 @@
 
        .audit-table th:nth-child(2),
        .audit-table td:nth-child(2) {
-         min-width: 150px !important;
-         width: 150px !important;
+         min-width: 130px !important;
+         width: 130px !important;
        }
 
        .audit-table th:nth-child(3),
        .audit-table td:nth-child(3) {
-         min-width: 135px !important;
-         width: 135px !important;
+         min-width: 120px !important;
+         width: 120px !important;
        }
 
        .audit-table th:nth-child(4),
        .audit-table td:nth-child(4) {
-         min-width: 135px !important;
-         width: 135px !important;
+         min-width: 120px !important;
+         width: 120px !important;
        }
 
        .audit-table th:nth-child(5),
        .audit-table td:nth-child(5) {
-         min-width: 90px !important;
-         width: 90px !important;
+         min-width: 80px !important;
+         width: 80px !important;
        }
 
        .audit-table th:nth-child(6),
        .audit-table td:nth-child(6) {
-         min-width: 140px !important;
-         width: 140px !important;
+         min-width: 110px !important;
+         width: 110px !important;
        }
 
        .audit-table th:nth-child(7),
        .audit-table td:nth-child(7) {
-         min-width: 110px !important;
-         width: 110px !important;
+         min-width: 100px !important;
+         width: 100px !important;
        }
 
        .audit-table th:nth-child(8),
@@ -915,7 +898,7 @@
          background: #fff !important;
          border: 1px solid #e5e7eb !important;
          border-radius: 8px !important;
-         padding: 5px 10px !important;
+        padding: 6px 10px !important;
          width: 100% !important;
          box-shadow: 0 3px 8px rgba(30, 64, 175, 0.07) !important;
          margin: 10px !important
@@ -929,9 +912,12 @@
          padding: 30px 0 !important;
        }
 
+       /* Use a vertical list of rows where each row is a 2-column grid: label | value
+          This ensures all values line up in the same column and rows are vertically centered. */
        .audit-expanded-grid {
-         display: grid !important;
-         gap: 18px 32px !important;
+         display: flex !important;
+         flex-direction: column !important;
+         gap: 8px !important;
        }
 
        @media (max-width:700px) {
@@ -942,12 +928,12 @@
        }
 
        .audit-detail-row {
-         display: flex !important;
-         flex-direction: row !important;
-         padding-bottom: 6px !important;
+         display: grid !important;
+         grid-template-columns: 140px 1fr !important;
+         align-items: center !important;
+         padding: 6px 0 !important;
          border-bottom: 1px solid #f3f4f6 !important;
-         margin-bottom: 8px !important;
-         gap: 10px !important;
+         gap: 8px 12px !important;
        }
 
        .audit-detail-row:last-child {
@@ -955,16 +941,24 @@
        }
 
        .audit-detail-label {
-         min-width: 130px !important;
          color: #64748b !important;
          font-weight: 700 !important;
-         font-size: 13px !important;
-         letter-spacing: .03em !important;
+         font-size: 11px !important;
+         letter-spacing: .02em !important;
+         text-align: left !important;
+       }
+
+       /* Add a colon after every label for consistent "label : value" look */
+       .audit-detail-label::after {
+         content: ':' !important;
+         display: inline-block !important;
+         margin-left: 6px !important;
+         color: #64748b !important;
        }
 
        .audit-detail-value {
          color: #1e293b !important;
-         font-size: 13px !important;
+         font-size: 11px !important;
          word-break: break-word !important;
        }
 
@@ -1002,9 +996,9 @@
          background: #f3f4f6 !important;
          border: 1px solid #d1d5db !important;
          border-radius: 4px !important;
-         padding: 1px 7px !important;
+         padding: 1px 6px !important;
          margin: 0 2px 2px 0 !important;
-         font-size: 12px !important;
+         font-size: 11px !important;
          color: #334155 !important;
        }
 
@@ -1156,11 +1150,11 @@
       /* Responsive Design */
       @media (max-width: 1024px) {
         #ct-chart-floating {
-          width: 60% !important;
+          width: 50% !important;
         }
 
         .floating-buttons.shifted {
-          right: 60% !important;
+          right: 50% !important;
         }
       }
 
@@ -1274,10 +1268,8 @@
   // Filter medical conditions based on search term
   function filterMedicalConditions() {
     const trimmedSearch = searchTerm.trim();
-    console.log('filterMedicalConditions called with:', trimmedSearch); // Debug log
 
     if (!trimmedSearch) {
-      console.log('No search term, returning all conditions'); // Debug log
       return medicalConditionsData;
     }
 
@@ -1316,14 +1308,11 @@
         (condition.details.code_type && condition.details.code_type.toLowerCase().includes(searchLower))
       );
 
-      if (matches) {
-        console.log('Match found for:', condition.title); // Debug log
-      }
+      // no-op: matched conditions will be returned
 
       return matches;
     });
 
-    console.log('Total matches found:', filtered.length); // Debug log
     return filtered;
   }
 
@@ -1374,8 +1363,6 @@
 
   // Sort condition audit data
   function sortConditionAuditData(key) {
-    console.log('Sorting by:', key); // Debug log
-    currentPage = 1;
     let direction;
     if (conditionAuditSortConfig.key === key) {
       if (conditionAuditSortConfig.direction === 'asc') {
@@ -1389,8 +1376,7 @@
     } else {
       direction = 'asc';
     }
-    conditionAuditSortConfig = { key, direction };
-    console.log('Sort config:', conditionAuditSortConfig); // Debug log
+  conditionAuditSortConfig = { key, direction };
     showConditionAuditContent();
   }
 
@@ -1464,7 +1450,6 @@
   // Fetch audit details and update conditionAuditData
   async function fetchAuditDetails(memberId, memberName) {
     const apiData = await fetchAuditDetailsFromServiceWorker(memberId, memberName);
-    console.log('fetched audit details from service worker:', apiData);
 
     // Normalize payload shapes: apiData may be { status,message,data:[...] } or the array directly
     let payload = apiData && apiData.data ? apiData.data : apiData;
@@ -1479,7 +1464,6 @@
     if (mapped.length) {
       // replace conditionAuditData
       conditionAuditData = mapped;
-      console.log('updated conditionAuditData:', conditionAuditData.length);
       // If audit panel is visible, refresh UI
       if (contentType === 'conditionAudit') {
         try { showConditionAuditContent(); } catch (e) { console.error(e); }
@@ -1551,7 +1535,7 @@
           <rect width="18" height="18" x="3" y="3" rx="3" stroke="white" stroke-opacity="0.2" stroke-width="1" />
         </svg>
       </button>
-      <button class="floating-icon-btn condition-audit-btn" id="conditionAuditBtn" data-tooltip="Audit Details Table" aria-label="Audit Details">
+      <button class="floating-icon-btn condition-audit-btn" id="conditionAuditBtn" data-tooltip="Audit Findings" aria-label="Audit Details">
         <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
             <defs>
               <!-- Gradient for clipboard top -->
@@ -1590,9 +1574,7 @@
     document.body.appendChild(buttonsDiv);
 
     // Add event listeners
-    // document.getElementById('chartBtn').addEventListener('click', showChartDetails);
-
-    // this is for the chartBtn
+  // wire up chart button click below
 
     document.getElementById('chartBtn').addEventListener('click', async () => {
       // Ensure UI is visible and load chart details using the current member context (tryAutoLoad sets these)
@@ -1659,12 +1641,15 @@
       <div class="panel-top" style="display:flex;padding:6px 12px;justify-content:flex-end;">
         <!-- logo + label container (right-aligned) -->
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
-          <img id="homLogoTop" src="${logoUrl}" alt="HOM" style="width:56px;height:56px;object-fit:contain;border-radius:8px;background:#fff;padding:6px;box-shadow:0 4px 10px rgba(0,0,0,0.14);" />
-          <div style="font-weight:700;font-size:12px;color:#111;line-height:1;transform: translateX(-6px);">AADI 2.0</div>
+          <img id="homLogoTop" src="${logoUrl}" alt="HOM" style="width:40px;height:40px;object-fit:contain;border-radius:6px;background:#fff;padding:4px;box-shadow:0 3px 8px rgba(0,0,0,0.12);" />
+          <div style="font-weight:700;font-size:11px;color:#111;line-height:1;transform: translateX(2px);">AADI 2.0</div>
         </div>
       </div>
         <div style="display:flex;flex-direction:column;gap:4px;flex:1;">
-          <h3 id="chartTitle" style="font-size:15px !important;">HCC Opportunities - John Doe</h3>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+            <h3 id="chartTitle" style="font-size:15px !important;margin:0;">HCC Opportunities <span id="chartCount" style="font-weight:600;margin-left:8px;">[ 0 ]</span></h3>
+            <div id="patientNameDisplay" style="text-align:right;font-weight:700;font-size:15px;">Loading..</div>
+          </div>
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
             <div id="chartSubTitle" class="chart-subtitle"></div>
             <div id="chartResultsCount" class="chart-subtitle" style="text-align:right;"></div>
@@ -1717,21 +1702,26 @@
       if (chartBtn) chartBtn.classList.add('active');
       if (conditionAuditBtn) {
         conditionAuditBtn.classList.remove('active');
-        conditionAuditBtn.setAttribute('data-tooltip', 'Audit Details Table');
+        conditionAuditBtn.setAttribute('data-tooltip', 'Audit Details');
       }
       if (chartBtn) chartBtn.setAttribute('data-tooltip', 'Active - Chart Details');
-      document.getElementById('chartTitle').textContent = 'HCC Opportunities - Loading...';
-      const subEl = document.getElementById('chartSubTitle');
-      if (subEl) subEl.textContent = currentDos ? `As on ${currentDos}` : '';
+  // Keep title static and show loading state in the bracketed count while data fetches
+  const titleEl = document.getElementById('chartTitle');
+  if (titleEl) titleEl.innerHTML = 'HCC Opportunities <span id="chartCount" style="font-weight:600;margin-left:8px;">[ Loading... ]</span>';
+  // Move the date/metadata to the right-aligned results area.
+  // Keep the left subtitle empty; show "Chart reviewed on {date}" on the right instead.
+  const resultsEl = document.getElementById('chartResultsCount');
+  if (resultsEl) resultsEl.textContent = currentDos ? `Chart reviewed on ${currentDos}` : '';
+      // patient name display updated when data loads
       showChartContent();
     } else if (type === 'conditionAudit') {
       if (conditionAuditBtn) {
         conditionAuditBtn.classList.add('active');
-        conditionAuditBtn.setAttribute('data-tooltip', 'Active - Audit Details Table');
+        conditionAuditBtn.setAttribute('data-tooltip', 'Audit Findings');
       }
       if (chartBtn) chartBtn.classList.remove('active');
       if (chartBtn) chartBtn.setAttribute('data-tooltip', 'Chart Details');
-      document.getElementById('chartTitle').textContent = 'Audit Details Table';
+      document.getElementById('chartTitle').textContent = 'Audit Details';
       const subEl = document.getElementById('chartSubTitle');
       if (subEl) subEl.textContent = '';
       showConditionAuditContent();
@@ -1760,7 +1750,6 @@
 
     try {
       const apiData = await fetchChartDetailsFromServiceWorker(memberId, memberName);
-      console.log("fetched chart details from service worker:", apiData);
       // The service worker returns a wrapper { status, message, data }
       const payload = apiData && apiData.data ? apiData.data : apiData;
       const apiConditions = payload && payload.medical_conditions ? payload.medical_conditions : [];
@@ -1772,34 +1761,41 @@
       // Replace medicalConditionsData contents with mapped results
       medicalConditionsData.length = 0;
       Array.prototype.push.apply(medicalConditionsData, mapped);
-      isChartLoading = false;
-      console.log("updated the medicalConditionsData:", medicalConditionsData);
-      // Update title if member info available
+  isChartLoading = false;
+      // Update patient name and chart count if member info available
+      const patientEl = document.getElementById('patientNameDisplay');
       if (payload && payload.member) {
         const name = `${payload.member.fname || ''} ${payload.member.lname || ''}`.trim();
-        if (name) document.getElementById('chartTitle').textContent = `HCC Opportunities - ${name}`;
-      } else if (memberName) {
-        document.getElementById('chartTitle').textContent = `HCC Opportunities - ${memberName}`;
+        if (name && patientEl) patientEl.textContent = name;
+      } else if (memberName && patientEl) {
+        patientEl.textContent = memberName;
       }
-      // Extract DOS (date of service) from payload.appointment.DOS and format for subtitle
+  // Extract DOS (date of service) from payload.appointment.DOS and format for subtitle
       try {
         const dosIso = payload && payload.appointment && (payload.appointment.DOS || payload.appointment.dos);
         if (dosIso) {
           const formatted = new Date(dosIso).toLocaleDateString();
           currentDos = formatted;
+          // Put the date on the right-aligned results element instead of the left subtitle
+          const resultsElDos = document.getElementById('chartResultsCount');
+          if (resultsElDos) resultsElDos.textContent = `Chart reviewed on ${formatted}`;
           const sub = document.getElementById('chartSubTitle');
-          if (sub) sub.textContent = `As on ${formatted}`;
+          if (sub) sub.textContent = '';
         } else {
+          const resultsElDos = document.getElementById('chartResultsCount');
+          if (resultsElDos) resultsElDos.textContent = '';
           const sub = document.getElementById('chartSubTitle');
           if (sub) sub.textContent = '';
         }
       } catch (e) {
         console.warn('Failed to parse DOS from chart payload', e);
       }
-      console.log("updated the member details")
+  // member details updated
 
-      // Refresh UI
-      updateChartContent();
+  // Refresh UI and update the bracketed count
+  updateChartContent();
+  const countEl = document.getElementById('chartCount');
+  if (countEl) countEl.textContent = `[ ${medicalConditionsData.length} ]`;
     } catch (err) {
       console.error('Failed to fetch chart details:', err);
       isChartLoading = false;
@@ -1825,7 +1821,7 @@
     chartBtn.classList.remove('active');
     if (conditionAuditBtn) {
       conditionAuditBtn.classList.remove('active');
-      conditionAuditBtn.setAttribute('data-tooltip', 'Audit Details Table');
+      conditionAuditBtn.setAttribute('data-tooltip', 'Audit Details');
     }
     chartBtn.setAttribute('data-tooltip', 'Chart Details');
 
@@ -1865,9 +1861,7 @@
   }
 
   function updateChartContent() {
-    console.log('updateChartContent called with searchTerm:', searchTerm); // Debug log
-    const filteredConditions = filterMedicalConditions();
-    console.log('Filtered conditions count:', filteredConditions.length); // Debug log
+  const filteredConditions = filterMedicalConditions();
 
     // Prefer scoping to the panel's chartContent to avoid collisions and to handle dynamic inserts
     const chartContent = document.getElementById('chartContent');
@@ -1879,8 +1873,7 @@
     if (!scrollContainer) scrollContainer = document.querySelector('.medical-conditions-scroll');
     if (!resultsCount) resultsCount = document.querySelector('.search-results-count');
 
-    console.log('Scroll container found:', !!scrollContainer); // Debug log
-    console.log('Results count element found:', !!resultsCount); // Debug log
+  // Scroll/result count presence checked above
 
     // If not found, attempt to (re)create the chart content structure and re-query
     if (!scrollContainer || !resultsCount) {
@@ -1890,7 +1883,7 @@
       const newChartContent = document.getElementById('chartContent');
       scrollContainer = newChartContent ? newChartContent.querySelector('.medical-conditions-scroll') : scrollContainer;
       resultsCount = newChartContent ? newChartContent.querySelector('.search-results-count') : resultsCount;
-      console.log('After recreate - Scroll container found:', !!scrollContainer, 'Results count found:', !!resultsCount);
+  // after recreate - presence flags available in scrollContainer/resultsCount
     }
 
     if (!scrollContainer) {
@@ -1925,10 +1918,11 @@
           if (_codeType) {
             const upper = _codeType.toUpperCase();
             if (upper === 'MISSED') {
-              // Show MISSED as OPPORTUNITIES in the UI and use the existing .opportunities badge style
-              codeTypeBadge = `<span class="code-type-badge opportunities">OPPORTUNITIES</span>`;
+              // MISSED should display as OPPORTUNITIES and be styled green (use documented/green style)
+              codeTypeBadge = `<span class="code-type-badge documented">OPPORTUNITY</span>`;
             } else if (upper === 'UPGRADE') {
-              codeTypeBadge = `<span class="code-type-badge" style="background:#d1fae5;color:#065f46;border:1px solid #6ee7b7">${_codeType}</span>`;
+              // UPGRADE should be orange (use opportunities/orange style)
+              codeTypeBadge = `<span class="code-type-badge opportunities">${_codeType}</span>`;
             } else {
               codeTypeBadge = `<span class="code-type-badge ${_codeType.toLowerCase()}">${_codeType}</span>`;
             }
@@ -1996,15 +1990,15 @@
       if (isChartLoading) {
         resultsCount.textContent = 'Loading...';
       } else {
-        resultsCount.textContent = `${medicalConditionsData.length} conditions`;
+        // Show the review date on the right when not loading (left header bracket remains the canonical count)
+        resultsCount.textContent = currentDos ? `Chart reviewed on ${currentDos}` : '';
       }
     }
   }
 
   function handleSearch(value) {
     searchTerm = value;
-    console.log('Search term updated:', searchTerm); // Debug log
-    console.log('Current contentType:', contentType); // Debug log
+    // updated searchTerm
 
     // Always update chart content when searching
     updateChartContent();
@@ -2027,7 +2021,7 @@
 
   function handleConditionAuditSearch(value) {
     conditionAuditSearchTerm = value;
-    console.log('Condition audit search term updated:', conditionAuditSearchTerm); // Debug log
+    // updated conditionAuditSearchTerm
     if (contentType === 'conditionAudit') {
       const input = document.querySelector('.search-input');
       const isFocused = document.activeElement === input;
@@ -2048,16 +2042,18 @@
   // Helper function to render expanded row details
   function renderExpandedAuditDetails(row) {
     const raw = row.raw || {};
+    const pnDates = row.pn_dates || raw.pn_dates || '';
+    const radvDate = row.audit_date || row.auditDate || raw.audit_date || raw.auditDate || '';
     const details = [
+      { label: 'PN DOS', value: pnDates },
       { label: 'RADV Concerns', value: raw.radv_concerns },
       { label: 'Diagnosis Criteria Gaps', value: raw.diag_criteria_gaps },
       { label: 'CI Gaps', value: raw.ci_gaps },
       { label: 'Contradictory Evidence', value: raw.contradictory_evidence },
       { label: 'Rationale', value: raw.rationale },
       { label: 'Misclassification Potential', value: raw.miscls_potential },
-      { label: 'Audit Score', value: row.auditScore },
-      { label: 'RADV Compliance Score', value: raw.radv_compliance_score },
-      { label: 'RADV Rejection Score', value: raw.radv_rejection_score },
+      { label: 'RADV Score', value: row.auditScore },
+      { label: 'RADV Date', value: radvDate },
     ];
 
     const validDetails = details.filter(item =>
@@ -2080,33 +2076,23 @@
     `;
   }
 
-  // Helper function to render PN dates as badges
-  function renderPnDates(pnDates) {
-    if (!pnDates) return '<span style="color:#9ca3af;">-</span>';
-    const dates = String(pnDates).split(/[,;|]/).filter(Boolean);
-    return dates.map(d => `<span class="audit-pn-badge">${escapeHtml(d.trim())}</span>`).join('');
-  }
+  // PN dates rendering removed from table rows (PN DOS moved into expanded details)
 
   // Global expanded rows state
   window.expandedAuditRows = window.expandedAuditRows || new Set();
 
   // Toggle expand handler
   window.toggleAuditRowExpand = function (rowId) {
-    console.log('toggleAuditRowExpand called with rowId:', rowId);
     const idStr = String(rowId);
     // Ensure expandedAuditRows exists
     if (!window.expandedAuditRows) {
       window.expandedAuditRows = new Set();
     }
-    console.log('Current expandedAuditRows before toggle:', Array.from(window.expandedAuditRows));
     if (window.expandedAuditRows.has(idStr)) {
       window.expandedAuditRows.delete(idStr);
-      console.log('Collapsed row:', idStr);
     } else {
       window.expandedAuditRows.add(idStr);
-      console.log('Expanded row:', idStr);
     }
-    console.log('Current expandedAuditRows after toggle:', Array.from(window.expandedAuditRows));
     showConditionAuditContent();
   };
 
@@ -2127,21 +2113,15 @@
     }
 
     const chartContent = document.getElementById('chartContent');
-    console.log('showConditionAuditContent - expandedAuditRows:', window.expandedAuditRows ? Array.from(window.expandedAuditRows) : 'undefined');
     const tableRows = sortedData.map((row, i) => {
       const rowId = String(row.id || i);
       const isExpanded = window.expandedAuditRows && window.expandedAuditRows.has(rowId);
-      console.log(`Row ${rowId} isExpanded:`, isExpanded);
       const raw = row.raw || {};
-      const pnDates = row.pn_dates || raw.pn_dates || '';
-      const documentedCode = row.documented_icd_code || raw.documented_icd_code || row.accurateCode || '';
-      const suggestedCode = row.accurate_code || raw.accurate_code || '';
-      const hccCode = row.hcc_code || row.hccCode || '';
-      const evidenceStrength = row.evidence_strength || row.evidenceStrength || '';
-      const radvDate = row.audit_date || row.auditDate || '';
-      const radvScore = row.radv_compliance_score || raw.radv_compliance_score || row.auditScore || '';
-      const initialQualityValue = raw.initial_quality || row.initial_quality;
-      const initialScore = initialQualityValue !== undefined && initialQualityValue !== null && initialQualityValue !== '' ? Number(initialQualityValue).toFixed(2) : '';
+    const documentedCode = row.documented_icd_code || raw.documented_icd_code || row.accurateCode || '';
+    const suggestedCode = row.accurate_code || raw.accurate_code || '';
+    const hccCode = row.hcc_code || row.hccCode || '';
+    const evidenceStrength = row.evidence_strength || row.evidenceStrength || '';
+  // PN DOS column removed from the table and moved to expanded details; RADV/initial columns were removed earlier
 
       return `
         <tr class="${isExpanded ? 'expanded' : ''}">
@@ -2154,15 +2134,13 @@
           <td class="text-center">${escapeHtml(documentedCode)}</td>
           <td class="text-center">${escapeHtml(suggestedCode)}</td>
           <td class="text-center">${escapeHtml(hccCode)}</td>
-          <td class="text-center">${renderPnDates(pnDates)}</td>
+          <!-- PN DOS column removed from table rows; shown in expanded details -->
           <td>${escapeHtml(evidenceStrength)}</td>
-          <td class="text-center">${escapeHtml(radvDate)}</td>
-          <td class="text-center">${escapeHtml(String(radvScore))}</td>
-          <td class="text-center">${escapeHtml(String(initialScore))}</td>
+          <!-- RADV Date, RADV Score, Initial Quality Score columns removed per request -->
         </tr>
         ${isExpanded ? `
         <tr class="audit-expanded-row">
-          <td colspan="10">
+          <td colspan="7">
             <div class="audit-expanded-container">
               ${renderExpandedAuditDetails(row)}
             </div>
@@ -2190,11 +2168,7 @@
                     <th>Documented Code</th>
                     <th>Suggested Code</th>
                     <th>HCC</th>
-                    <th>PN DOS</th>
                     <th>Evidence</th>
-                    <th>RADV Date</th>
-                    <th>RADV Score</th>
-                    <th>Initial Quality Score</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2210,7 +2184,15 @@
     // Update header results count for audit view
     try {
       const resultsEl = document.getElementById('chartResultsCount');
-      if (resultsEl) resultsEl.textContent = `${sortedData.length} records`;
+      if (resultsEl) {
+        // Prefer showing the chart DOS (date of service) from the Chart API when available.
+        // Fallback to the record count if DOS is not yet available.
+        if (currentDos) {
+          resultsEl.textContent = `Chart reviewed on ${currentDos}`;
+        } else {
+          resultsEl.textContent = `${sortedData.length} records`;
+        }
+      }
     } catch (e) {
       console.warn('Failed to update chartResultsCount for audit view', e);
     }
@@ -2218,20 +2200,16 @@
     // Add event delegation for expand buttons after rendering
     setTimeout(() => {
       const expandButtons = chartContent.querySelectorAll('.expand-btn');
-      console.log('Found expand buttons:', expandButtons.length);
-      expandButtons.forEach((btn, index) => {
+      expandButtons.forEach((btn) => {
         const onclickAttr = btn.getAttribute('onclick');
-        console.log(`Button ${index} onclick:`, onclickAttr);
         if (onclickAttr && onclickAttr.includes('toggleAuditRowExpand')) {
           // Extract the rowId from the onclick attribute
           const match = onclickAttr.match(/'([^']+)'/);
           if (match) {
             const rowId = match[1];
-            console.log('Adding click listener for rowId:', rowId);
             btn.addEventListener('click', function (e) {
               e.preventDefault();
               e.stopPropagation();
-              console.log('Button clicked for rowId:', rowId);
               window.toggleAuditRowExpand(rowId);
             });
           }
@@ -2241,10 +2219,12 @@
   }
 
 
-  // 🧩 Detect patient info and trigger automatically
+  // 🧩 Detect patient info and trigger automatically (non-blocking)
   function tryAutoLoad() {
     if (hasLoaded) return;
 
+    // const chartNumber= window.prompt("enter the chart number");
+    // const patientName= window.prompt("enter the patient name");
     const table = document.querySelector(TABLE_SELECTOR);
     const ul = document.querySelector(UL_SELECTOR);
     if (!table || !ul) return;
@@ -2252,27 +2232,21 @@
     const chartNumber = document.querySelector("#chartNumber")?.textContent?.trim();
     const patientName = document.querySelector("#patientName")?.textContent?.trim();
 
-    // const chartNumber = window.prompt("Enter the chart Number");
-    // const patientName = window.prompt("Enter the patient Name");
-
-    // const chartNumber = "71519763";
-    // const patientName = "John doe";
-
-    if (chartNumber && patientName) {
-      console.log(`🧩 Found patient: ${patientName} (${chartNumber})`);
-
-      // Initialize the UI components
-      addStyles();
-      createFloatingButtons();
-      createBackdrop();
-      createFloatingPanel();
-
-      // Persist detected member info and show chart details by default
-      currentMemberId = chartNumber;
-      currentMemberName = patientName;
-      // showChartDetails();
-      hasLoaded = true;
+    if (!chartNumber || !patientName) {
+      // Nothing to auto-load yet; wait for DOM mutations
+      return;
     }
+
+    // Initialize the UI components
+    addStyles();
+    createFloatingButtons();
+    createBackdrop();
+    createFloatingPanel();
+
+    // Persist detected member info and mark loaded
+    currentMemberId = chartNumber;
+    currentMemberName = patientName;
+    hasLoaded = true;
   }
 
   // Make functions globally available for onclick handlers
