@@ -1,3 +1,5 @@
+/* global chrome */
+
 console.log("⚙️ CareTracker service worker loaded.");
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -6,7 +8,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     fetchWithTimeout(
       "https://h4xqr89uik.execute-api.us-east-1.amazonaws.com/dev/",
       { member_id, member_name },
-      20000 // 10 seconds timeout
+      10000 // 10 seconds timeout
     )
       .then((data) => sendResponse({ data }))
       .catch((err) => sendResponse({ error: err.message }));
@@ -16,9 +18,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "fetchAuditDetails") {
     const { member_id, member_name } = message.payload;
     fetchWithTimeout(
-      "https://sfe5arbv61.execute-api.us-east-1.amazonaws.com/dev",
+      "https://xclgdxg33a.execute-api.us-east-1.amazonaws.com/dev",
       { member_id, member_name },
-      20000 // 10 seconds timeout
+      10000 // 10 seconds timeout
+    )
+      .then((data) => sendResponse({ data }))
+      .catch((err) => sendResponse({ error: err.message }));
+    return true;
+  }
+
+  if (message.action === "fetchMRAnalysis") {
+    const { member_id, member_name } = message.payload;
+    fetchWithTimeout(
+      "https://iag1sy7y08.execute-api.us-east-1.amazonaws.com/dev",
+      { member_id, member_name },
+      15000 // 15 seconds timeout (longer for analysis)
     )
       .then((data) => sendResponse({ data }))
       .catch((err) => sendResponse({ error: err.message }));

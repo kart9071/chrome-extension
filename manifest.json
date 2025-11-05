@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "CareTracker Button Listener",
-  "version": "1.0",
-  "description": "Shows a button when CareTracker patient table appears.",
+  "name": "AADI 2.0 Extensionr",
+  "version": "1.0.0",
+  "description": "AADI 2.0 Caretracker extension for HCC Opportunities and Audit Details",
   "permissions": [
     "scripting",
     "activeTab",
@@ -16,7 +16,7 @@
   },
   "action": {
     "default_icon": {
-      "8": "icons/HOM-icon.png"
+      "8": "HOM-icon.png"
       
     },
   "default_title": "CareTracker Button Listener"

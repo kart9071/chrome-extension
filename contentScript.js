@@ -67,6 +67,9 @@
   let searchTerm = '';
   let conditionAuditSearchTerm = '';
   let conditionAuditSortConfig = { key: null, direction: 'asc' };
+  let mrAnalysisData = null;
+  let isMRAnalysisLoading = false;
+  let chartApiData = null; // Cache original chart API response for review status
 
   // current member context (used for API calls)
   let currentMemberId = null;
@@ -242,6 +245,20 @@
          color: #fff !important;
        }
 
+       /* MR Analysis Button Active States */
+       .floating-icon-btn.mr-analysis-btn.active::before {
+         background: linear-gradient(135deg, #10B981 0%, #059669 100%) !important;
+       }
+
+       .floating-icon-btn.mr-analysis-btn.active::after {
+         border-left-color: #10B981 !important;
+       }
+
+       .floating-icon-btn.mr-analysis-btn.active {
+         background: #10B981 !important;
+         color: #fff !important;
+       }
+
        /* Backdrop Overlay with animation */
        .backdrop {
          position: fixed !important;
@@ -313,6 +330,7 @@
          font-size: 18px !important;
          color: #333 !important;
          font-weight: 600 !important;
+         background: transparent !important;
        }
 
       /* Subtitle under chart title (small, muted) */
@@ -1424,6 +1442,27 @@
     });
   }
 
+  // Fetch MR Analysis details from the extension service worker
+  function fetchMRAnalysisFromServiceWorker(memberId, memberName) {
+    return new Promise((resolve, reject) => {
+      try {
+        chrome.runtime.sendMessage(
+          { action: 'fetchMRAnalysis', payload: { member_id: memberId, member_name: memberName } },
+          (response) => {
+            if (chrome.runtime.lastError) {
+              return reject(new Error(chrome.runtime.lastError.message));
+            }
+            if (!response) return reject(new Error('No response from service worker'));
+            if (response.error) return reject(new Error(response.error));
+            return resolve(response.data);
+          }
+        );
+      } catch (err) {
+        reject(err);
+      }
+    });
+  }
+
   // Map audit API rows to internal audit data shape
   function mapApiAuditRows(apiRows) {
     if (!Array.isArray(apiRows)) return [];
@@ -1444,6 +1483,7 @@
       pn_dates: a.pn_dates || '',
       evidence_strength: a.evidence_strength || '',
       audit_date: a.audit_date || '',
+      misclassification_details: a.miscls_details || '',
       radv_compliance_score: a.radv_compliance_score || null,
       raw: a
     }));
@@ -1453,19 +1493,38 @@
   async function fetchAuditDetails(memberId, memberName) {
     const apiData = await fetchAuditDetailsFromServiceWorker(memberId, memberName);
 
-    // Normalize payload shapes: apiData may be { status,message,data:[...] } or the array directly
-    let payload = apiData && apiData.data ? apiData.data : apiData;
+    // Normalize payload shapes: apiData may be nested in audit_data.data
     let auditArray = [];
-    if (Array.isArray(payload)) {
-      auditArray = payload;
-    } else if (payload && Array.isArray(payload.data)) {
-      auditArray = payload.data;
+    if (apiData && apiData.audit_data && Array.isArray(apiData.audit_data.data)) {
+      auditArray = apiData.audit_data.data;
+    } else if (apiData && Array.isArray(apiData.data)) {
+      auditArray = apiData.data;
+    } else if (Array.isArray(apiData)) {
+      auditArray = apiData;
     }
 
     const mapped = mapApiAuditRows(auditArray || []);
     if (mapped.length) {
       // replace conditionAuditData
       conditionAuditData = mapped;
+      
+      // Update UI elements with audit API response data (not chart data)
+      if (apiData && apiData.member_name) {
+        const patientEl = document.getElementById('patientNameDisplay');
+        if (patientEl) patientEl.textContent = apiData.member_name;
+      }
+      
+      // Update DOS from audit API response
+      if (apiData && apiData.dos) {
+        try {
+          const formatted = new Date(apiData.dos).toLocaleDateString();
+          const resultsEl = document.getElementById('chartResultsCount');
+          if (resultsEl) resultsEl.textContent = `DOS: ${formatted}`;
+        } catch (e) {
+          console.warn('Failed to parse DOS from audit payload', e);
+        }
+      }
+      
       // If audit panel is visible, refresh UI
       if (contentType === 'conditionAudit') {
         try { showConditionAuditContent(); } catch (e) { console.error(e); }
@@ -1570,6 +1629,35 @@
         </svg>
 
       </button>
+      <button class="floating-icon-btn mr-analysis-btn" id="mrAnalysisBtn" data-tooltip="MR Analysis" aria-label="Medical Record Analysis">
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+            <defs>
+              <linearGradient id="analysisGradient" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#10B981"/>
+                <stop offset="100%" stop-color="#059669"/>
+              </linearGradient>
+            </defs>
+            
+            <!-- Main document background -->
+            <rect x="4" y="2" width="16" height="20" rx="2" fill="white" stroke="url(#analysisGradient)" stroke-width="2"/>
+            
+            <!-- Header section -->
+            <rect x="4" y="2" width="16" height="6" rx="2" fill="url(#analysisGradient)" opacity="0.1"/>
+            
+            <!-- Analysis chart/graph representation -->
+            <path d="M7 12l3 3 4-4 3 2" stroke="url(#analysisGradient)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            
+            <!-- Data points -->
+            <circle cx="7" cy="12" r="1.5" fill="url(#analysisGradient)"/>
+            <circle cx="10" cy="15" r="1.5" fill="url(#analysisGradient)"/>
+            <circle cx="14" cy="11" r="1.5" fill="url(#analysisGradient)"/>
+            <circle cx="17" cy="13" r="1.5" fill="url(#analysisGradient)"/>
+            
+            <!-- Text lines -->
+            <line x1="6" y1="17" x2="12" y2="17" stroke="#D1D5DB" stroke-width="1" stroke-linecap="round"/>
+            <line x1="6" y1="19" x2="18" y2="19" stroke="#D1D5DB" stroke-width="1" stroke-linecap="round"/>
+        </svg>
+      </button>
 
     `;
 
@@ -1579,9 +1667,84 @@
   // wire up chart button click below
 
     document.getElementById('chartBtn').addEventListener('click', async () => {
+      // Check if we're already on chart view and user wants to refresh
+      const isAlreadyOnChart = contentType === 'chart' && document.getElementById('chartBtn').classList.contains('active');
+      
       // Ensure UI is visible and load chart details using the current member context (tryAutoLoad sets these)
       showPanel('chart');
       const chartContent = document.getElementById('chartContent');
+      
+      // If already on chart view, force refresh by calling API
+      if (isAlreadyOnChart) {
+        console.log('🔄 Refreshing chart data for member:', currentMemberId);
+        if (chartContent) chartContent.innerHTML = `<div style="padding:20px">Refreshing chart details...</div>`;
+        try {
+          await showChartDetails(currentMemberId, currentMemberName);
+        } catch (err) {
+          console.error('Failed to refresh chart details:', err);
+          if (chartContent) chartContent.innerHTML = `<div style="padding:20px;color:#c00">Failed to refresh chart details: ${err.message}</div>`;
+        }
+        return;
+      }
+      
+      // Check if data is already available for current member (first time opening this view)
+      if (medicalConditionsData.length > 0) {
+        console.log('📊 Using cached chart data for member:', currentMemberId);
+        showChartContent();
+        
+        // Update the count display
+        const countEl = document.getElementById('chartCount');
+        if (countEl) countEl.textContent = `[ ${medicalConditionsData.length} ]`;
+        
+        // Update patient name
+        const patientEl = document.getElementById('patientNameDisplay');
+        if (patientEl && currentMemberName) {
+          patientEl.textContent = currentMemberName;
+        }
+        
+        // Update DOS
+        const resultsEl = document.getElementById('chartResultsCount');
+        if (resultsEl && currentDos) {
+          resultsEl.textContent = `DOS: ${currentDos}`;
+        }
+        
+        // Update review status from cached API data
+        const reviewStatusEl = document.getElementById('reviewStatusHeader');
+        if (reviewStatusEl && chartApiData) {
+          const status = chartApiData.status;
+          const payload = chartApiData.data || chartApiData;
+          const analystData = payload && payload.analyst;
+          
+          let statusText = '';
+          let statusColor = '#666';
+          
+          if (status === 7) {
+            statusText = 'Under Analyst Review';
+            statusColor = '#ff8c00';
+          } else if (status === 12) {
+            if (analystData && analystData.Fname && analystData.Lname) {
+              statusText = `Reviewed by ${analystData.Fname} ${analystData.Lname}`;
+            } else {
+              statusText = 'Reviewed by Analyst';
+            }
+            statusColor = '#007bff';
+          } else if (status === 13) {
+            if (analystData && analystData.Fname && analystData.Lname) {
+              statusText = `Reviewed by ${analystData.Fname} ${analystData.Lname}`;
+            } else {
+              statusText = 'Reviewed by Analyst';
+            }
+            statusColor = '#28a745';
+          }
+          
+          console.log('📝 Setting cached review status:', { statusText, statusColor, status });
+          reviewStatusEl.textContent = statusText;
+          reviewStatusEl.style.color = statusColor;
+        }
+        
+        return;
+      }
+      
       if (chartContent) chartContent.innerHTML = `<div style="padding:20px">Loading chart details...</div>`;
       try {
         // Pass the current cached member context explicitly to the loader
@@ -1593,18 +1756,118 @@
     });
     // When user clicks Audit, show panel and fetch audit details via service worker
     document.getElementById('conditionAuditBtn').addEventListener('click', async () => {
+      // Check if we're already on audit view and user wants to refresh
+      const isAlreadyOnAudit = contentType === 'conditionAudit' && document.getElementById('conditionAuditBtn').classList.contains('active');
+      
       // Ensure UI is visible
       showPanel('conditionAudit');
       const chartContent = document.getElementById('chartContent');
+      
+      // If already on audit view, force refresh by calling API
+      if (isAlreadyOnAudit) {
+        console.log('🔄 Refreshing audit data for member:', currentMemberId);
+        if (chartContent) chartContent.innerHTML = `<div style="padding:20px">Refreshing audit details...</div>`;
+        const headerCountEl = document.getElementById('chartResultsCount');
+        if (headerCountEl) headerCountEl.textContent = 'Refreshing...';
+        const patientEl = document.getElementById('patientNameDisplay');
+        if (patientEl) patientEl.textContent = 'Refreshing...';
+        try {
+          await fetchAuditDetails(currentMemberId || '89700511', currentMemberName || 'John Doe');
+        } catch (err) {
+          console.error('Failed to refresh audit details:', err);
+          if (chartContent) chartContent.innerHTML = `<div style="padding:20px;color:#c00">Failed to refresh audit details: ${err.message}</div>`;
+        }
+        return;
+      }
+      
+      // Check if audit data is already available for current member (first time opening this view)
+      if (conditionAuditData.length > 0) {
+        console.log('🔍 Using cached audit data for member:', currentMemberId);
+        showConditionAuditContent();
+        // Update patient name display
+        const patientEl = document.getElementById('patientNameDisplay');
+        if (patientEl) patientEl.textContent = currentMemberName || 'N/A';
+        
+        // Update DOS display
+        const resultsEl = document.getElementById('chartResultsCount');
+        if (resultsEl && currentDos) {
+          resultsEl.textContent = `DOS: ${currentDos}`;
+        } else if (resultsEl) {
+          resultsEl.textContent = `${conditionAuditData.length} records`;
+        }
+        return;
+      }
+      
       if (chartContent) chartContent.innerHTML = `<div style="padding:20px">Loading audit details...</div>`;
       // show loading state in header count area
       const headerCountEl = document.getElementById('chartResultsCount');
       if (headerCountEl) headerCountEl.textContent = 'Loading...';
+      // Reset patient name to loading state - will be updated by audit API response
+      const patientEl = document.getElementById('patientNameDisplay');
+      if (patientEl) patientEl.textContent = 'Loading...';
       try {
         await fetchAuditDetails(currentMemberId || '89700511', currentMemberName || 'John Doe');
       } catch (err) {
         console.error('Failed to fetch audit details:', err);
         if (chartContent) chartContent.innerHTML = `<div style="padding:20px;color:#c00">Failed to load audit details: ${err.message}</div>`;
+      }
+    });
+
+    // MR Analysis button click handler
+    document.getElementById('mrAnalysisBtn').addEventListener('click', async () => {
+      // Check if we're already on MR analysis view and user wants to refresh
+      const isAlreadyOnMRAnalysis = contentType === 'mrAnalysis' && document.getElementById('mrAnalysisBtn').classList.contains('active');
+      
+      showPanel('mrAnalysis');
+      const chartContent = document.getElementById('chartContent');
+      
+      // If already on MR analysis view, force refresh by calling API
+      if (isAlreadyOnMRAnalysis) {
+        console.log('🔄 Refreshing MR analysis data for member:', currentMemberId);
+        if (chartContent) chartContent.innerHTML = `<div style="padding:20px">Refreshing MR analysis...</div>`;
+        const headerCountEl = document.getElementById('chartResultsCount');
+        if (headerCountEl) headerCountEl.textContent = 'Refreshing...';
+        const patientEl = document.getElementById('patientNameDisplay');
+        if (patientEl) patientEl.textContent = 'Refreshing...';
+        try {
+          isMRAnalysisLoading = true;
+          const apiData = await fetchMRAnalysisFromServiceWorker(currentMemberId || '89700511', currentMemberName || 'fd');
+          mrAnalysisData = apiData;
+          isMRAnalysisLoading = false;
+          showMRAnalysisContent();
+        } catch (err) {
+          console.error('Failed to refresh MR analysis:', err);
+          isMRAnalysisLoading = false;
+          if (chartContent) chartContent.innerHTML = `<div style="padding:20px;color:#c00">Failed to refresh MR analysis: ${err.message}</div>`;
+        }
+        return;
+      }
+      
+      // Check if MR analysis data is already available for current member (first time opening this view)
+      if (mrAnalysisData && mrAnalysisData.chart_summary && mrAnalysisData.chart_summary.text) {
+        console.log('📊 Using cached MR analysis data for member:', currentMemberId);
+        showMRAnalysisContent();
+        return;
+      }
+      
+      if (chartContent) chartContent.innerHTML = `<div style="padding:20px">Loading MR analysis...</div>`;
+      
+      const headerCountEl = document.getElementById('chartResultsCount');
+      if (headerCountEl) headerCountEl.textContent = 'Loading...';
+      
+      const patientEl = document.getElementById('patientNameDisplay');
+      if (patientEl) patientEl.textContent = 'Loading...';
+      
+      try {
+        isMRAnalysisLoading = true;
+        const apiData = await fetchMRAnalysisFromServiceWorker(currentMemberId || '89700511', currentMemberName || 'fd');
+        mrAnalysisData = apiData;
+        isMRAnalysisLoading = false;
+        showMRAnalysisContent();
+      } catch (err) {
+        console.error('Failed to fetch MR analysis:', err);
+        isMRAnalysisLoading = false;
+        if (chartContent) chartContent.innerHTML = `<div style="padding:20px;color:#c00">Failed to load MR analysis: ${err.message}</div>`;
       }
     });
 
@@ -1653,7 +1916,10 @@
             <div id="patientNameDisplay" style="text-align:right;font-weight:700;font-size:15px;">Loading..</div>
           </div>
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-            <div id="chartSubTitle" class="chart-subtitle"></div>
+            <div style="display:flex;flex-direction:column;gap:2px;">
+              <div id="chartSubTitle" class="chart-subtitle"></div>
+              <div id="reviewStatusHeader" style="font-size:12px;font-weight:600;color:#666;"></div>
+            </div>
             <div id="chartResultsCount" class="chart-subtitle" style="text-align:right;"></div>
           </div>
         </div>
@@ -1679,6 +1945,7 @@
     const floatingButtons = document.getElementById('floatingButtons');
     const chartBtn = document.getElementById('chartBtn');
     const conditionAuditBtn = document.getElementById('conditionAuditBtn');
+    const mrAnalysisBtn = document.getElementById('mrAnalysisBtn');
 
     if (!div || !backdrop || !floatingButtons) return;
 
@@ -1690,7 +1957,7 @@
     // default shifted state
     floatingButtons.classList.add('shifted');
     // audit-specific adjustments (wider panel and move buttons further left)
-    if (type === 'conditionAudit') {
+    if (type === 'conditionAudit' || type === 'mrAnalysis') {
       div.classList.add('audit');
       floatingButtons.classList.add('audit-shift');
     } else {
@@ -1706,14 +1973,17 @@
         conditionAuditBtn.classList.remove('active');
         conditionAuditBtn.setAttribute('data-tooltip', 'Audit Details');
       }
-      if (chartBtn) chartBtn.setAttribute('data-tooltip', 'Active - Chart Details');
+      if (chartBtn) chartBtn.setAttribute('data-tooltip', 'HCC Analysis');
   // Keep title static and show loading state in the bracketed count while data fetches
   const titleEl = document.getElementById('chartTitle');
   if (titleEl) titleEl.innerHTML = 'HCC Opportunities <span id="chartCount" style="font-weight:600;margin-left:8px;">[ Loading... ]</span>';
   // Move the date/metadata to the right-aligned results area.
   // Keep the left subtitle empty; show "Chart reviewed on {date}" on the right instead.
   const resultsEl = document.getElementById('chartResultsCount');
-  if (resultsEl) resultsEl.textContent = currentDos ? `Chart reviewed on ${currentDos}` : '';
+  if (resultsEl) resultsEl.textContent = currentDos ? `DOS: ${currentDos}` : '';
+  // Clear review status when showing panel
+  const reviewStatusEl = document.getElementById('reviewStatusHeader');
+  if (reviewStatusEl) reviewStatusEl.textContent = '';
       // patient name display updated when data loads
       showChartContent();
     } else if (type === 'conditionAudit') {
@@ -1727,6 +1997,23 @@
       const subEl = document.getElementById('chartSubTitle');
       if (subEl) subEl.textContent = '';
       showConditionAuditContent();
+    } else if (type === 'mrAnalysis') {
+      if (mrAnalysisBtn) {
+        mrAnalysisBtn.classList.add('active');
+        mrAnalysisBtn.setAttribute('data-tooltip', 'MR Analysis');
+      }
+      if (chartBtn) {
+        chartBtn.classList.remove('active');
+        chartBtn.setAttribute('data-tooltip', 'Chart Details');
+      }
+      if (conditionAuditBtn) {
+        conditionAuditBtn.classList.remove('active');
+        conditionAuditBtn.setAttribute('data-tooltip', 'Audit Details');
+      }
+      document.getElementById('chartTitle').textContent = 'Medical Record Analysis';
+      const subEl = document.getElementById('chartSubTitle');
+      if (subEl) subEl.textContent = '';
+      showMRAnalysisContent();
     }
   }
 
@@ -1749,9 +2036,13 @@
     // update header count to show loading state
     const headerCountEl = document.getElementById('chartResultsCount');
     if (headerCountEl) headerCountEl.textContent = 'Loading...';
+    // clear review status during loading
+    const reviewStatusEl = document.getElementById('reviewStatusHeader');
+    if (reviewStatusEl) reviewStatusEl.textContent = '';
 
     try {
       const apiData = await fetchChartDetailsFromServiceWorker(memberId, memberName);
+      chartApiData = apiData; // Cache the full API response
       // The service worker returns a wrapper { status, message, data }
       const payload = apiData && apiData.data ? apiData.data : apiData;
       const apiConditions = payload && payload.medical_conditions ? payload.medical_conditions : [];
@@ -1780,7 +2071,7 @@
           currentDos = formatted;
           // Put the date on the right-aligned results element instead of the left subtitle
           const resultsElDos = document.getElementById('chartResultsCount');
-          if (resultsElDos) resultsElDos.textContent = `Chart reviewed on ${formatted}`;
+          if (resultsElDos) resultsElDos.textContent = `DOS: ${formatted}`;
           const sub = document.getElementById('chartSubTitle');
           if (sub) sub.textContent = '';
         } else {
@@ -1792,7 +2083,37 @@
       } catch (e) {
         console.warn('Failed to parse DOS from chart payload', e);
       }
-  // member details updated
+  // Update review status header based on API response status
+  const reviewStatusEl = document.getElementById('reviewStatusHeader');
+  if (reviewStatusEl && apiData) {
+    const status = apiData.status;
+    const analystData = payload && payload.analyst;
+    
+    let statusText = '';
+    let statusColor = '#666';
+    
+    if (status === 7) {
+      statusText = 'Under Analyst Review';
+      statusColor = '#ff8c00'; // orangish color
+    } else if (status === 12) {
+      if (analystData && analystData.Fname && analystData.Lname) {
+        statusText = `Reviewed by ${analystData.Fname} ${analystData.Lname}`;
+      } else {
+        statusText = 'Reviewed by Analyst';
+      }
+      statusColor = '#007bff'; // blue color
+    } else if (status === 13) {
+      if (analystData && analystData.Fname && analystData.Lname) {
+        statusText = `Reviewed by ${analystData.Fname} ${analystData.Lname}`;
+      } else {
+        statusText = 'Reviewed by Analyst';
+      }
+      statusColor = '#28a745'; // green color
+    }
+    
+    reviewStatusEl.textContent = statusText;
+    reviewStatusEl.style.color = statusColor;
+  }
 
   // Refresh UI and update the bracketed count
   updateChartContent();
@@ -1804,6 +2125,9 @@
       if (chartContent) {
         chartContent.innerHTML = `<div style="padding:20px;color:#c00">Failed to load chart details: ${err.message}</div>`;
       }
+      // clear review status on error
+      const reviewStatusEl = document.getElementById('reviewStatusHeader');
+      if (reviewStatusEl) reviewStatusEl.textContent = '';
     }
   }
 
@@ -1993,7 +2317,7 @@
         resultsCount.textContent = 'Loading...';
       } else {
         // Show the review date on the right when not loading (left header bracket remains the canonical count)
-        resultsCount.textContent = currentDos ? `Chart reviewed on ${currentDos}` : '';
+        resultsCount.textContent = currentDos ? `DOS: ${currentDos}` : '';
       }
     }
   }
@@ -2044,18 +2368,16 @@
   // Helper function to render expanded row details
   function renderExpandedAuditDetails(row) {
     const raw = row.raw || {};
-    const pnDates = row.pn_dates || raw.pn_dates || '';
-    const radvDate = row.audit_date || row.auditDate || raw.audit_date || raw.auditDate || '';
+    const suggestedCode = row.accurate_code || raw.accurate_code || '';
     const details = [
-      { label: 'PN DOS', value: pnDates },
+      { label: 'Suggested Code', value: suggestedCode },
       { label: 'RADV Concerns', value: raw.radv_concerns },
       { label: 'Diagnosis Criteria Gaps', value: raw.diag_criteria_gaps },
       { label: 'CI Gaps', value: raw.ci_gaps },
       { label: 'Contradictory Evidence', value: raw.contradictory_evidence },
+      { label: 'Misclassification Analysis', value: row.misclassification_details || raw.miscls_details },
       { label: 'Rationale', value: raw.rationale },
-      { label: 'Misclassification Potential', value: raw.miscls_potential },
-      { label: 'RADV Score', value: row.auditScore },
-      { label: 'RADV Date', value: radvDate },
+      
     ];
 
     const validDetails = details.filter(item =>
@@ -2119,11 +2441,11 @@
       const rowId = String(row.id || i);
       const isExpanded = window.expandedAuditRows && window.expandedAuditRows.has(rowId);
       const raw = row.raw || {};
-    const documentedCode = row.documented_icd_code || raw.documented_icd_code || row.accurateCode || '';
-    const suggestedCode = row.accurate_code || raw.accurate_code || '';
+    const documentedCode = row.documented_icd_code || '';
     const hccCode = row.hcc_code || row.hccCode || '';
     const evidenceStrength = row.evidence_strength || row.evidenceStrength || '';
-  // PN DOS column removed from the table and moved to expanded details; RADV/initial columns were removed earlier
+    const pnDates = row.pn_dates || raw.pn_dates || '';
+    // PN DOS moved to main table, Suggested Code moved to expanded details
 
       return `
         <tr class="${isExpanded ? 'expanded' : ''}">
@@ -2134,11 +2456,9 @@
           </td>
           <td class="condition-name-col">${escapeHtml(row.conditionName || row.documented_condition || '')}</td>
           <td class="text-center">${escapeHtml(documentedCode)}</td>
-          <td class="text-center">${escapeHtml(suggestedCode)}</td>
+          <td class="text-center">${escapeHtml(pnDates)}</td>
           <td class="text-center">${escapeHtml(hccCode)}</td>
-          <!-- PN DOS column removed from table rows; shown in expanded details -->
           <td>${escapeHtml(evidenceStrength)}</td>
-          <!-- RADV Date, RADV Score, Initial Quality Score columns removed per request -->
         </tr>
         ${isExpanded ? `
         <tr class="audit-expanded-row">
@@ -2168,7 +2488,7 @@
                     <th></th>
                     <th>Condition Name</th>
                     <th>Documented Code</th>
-                    <th>Suggested Code</th>
+                    <th>Encounter Dates</th>
                     <th>HCC</th>
                     <th>Evidence</th>
                   </tr>
@@ -2187,11 +2507,9 @@
     try {
       const resultsEl = document.getElementById('chartResultsCount');
       if (resultsEl) {
-        // Prefer showing the chart DOS (date of service) from the Chart API when available.
-        // Fallback to the record count if DOS is not yet available.
-        if (currentDos) {
-          resultsEl.textContent = `Chart reviewed on ${currentDos}`;
-        } else {
+        // For audit view, keep the DOS that was set from audit API response
+        // Don't override it if it's already set from fetchAuditDetails
+        if (!resultsEl.textContent || resultsEl.textContent === 'Loading...') {
           resultsEl.textContent = `${sortedData.length} records`;
         }
       }
@@ -2220,13 +2538,247 @@
     }, 0);
   }
 
+  // Show MR Analysis content
+  function showMRAnalysisContent() {
+    const chartContent = document.getElementById('chartContent');
+    
+    if (!mrAnalysisData || !mrAnalysisData.chart_summary || !mrAnalysisData.chart_summary.text) {
+      chartContent.innerHTML = `
+        <div style="text-align: center; padding: 40px 20px; color: #6c757d;">
+          <div style="font-size: 24px; margin-bottom: 10px;">📊</div>
+          <div>No MR analysis data available</div>
+        </div>
+      `;
+      return;
+    }
+
+    // Update header with DOS and member information
+    const resultsEl = document.getElementById('chartResultsCount');
+    if (resultsEl) {
+      // Format the latest_dos to show just the date part
+      const latestDos = mrAnalysisData.latest_dos;
+      const formattedDos = latestDos ? new Date(latestDos).toLocaleDateString() : 'N/A';
+      resultsEl.textContent = `DOS: ${formattedDos}`;
+    }
+
+    const patientEl = document.getElementById('patientNameDisplay');
+    if (patientEl) {
+      // Use member_name from API response, fallback to currentMemberName if null
+      const memberName = mrAnalysisData.member_name || currentMemberName || 'N/A';
+      patientEl.textContent = memberName;
+    }
+
+    // Parse and render the complete MR analysis
+    const analysisHtml = parseMRAnalysisContent(mrAnalysisData.chart_summary.text);
+    
+    chartContent.innerHTML = `
+      <div class="mr-analysis-section" style="max-height: calc(100vh - 85px); overflow-y: auto; padding-right: 8px; padding-left: 15px;">
+        <div class="analysis-content" style="font-size: 11px; line-height: 1.4; padding:10px !important;">
+          ${analysisHtml}
+        </div>
+      </div>
+    `;
+    
+    // Add custom scrollbar styling
+    const style = document.createElement('style');
+    style.textContent = `
+      .mr-analysis-section::-webkit-scrollbar {
+        width: 6px;
+      }
+      .mr-analysis-section::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 3px;
+      }
+      .mr-analysis-section::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 3px;
+      }
+      .mr-analysis-section::-webkit-scrollbar-thumb:hover {
+        background: #a8a8a8;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  // Parse MR Analysis content and show all sections and tables up to Historical Substance Use Analysis
+  function parseMRAnalysisContent(text) {
+    const lines = text.split('\n');
+    let html = '';
+    let inTable = false;
+    let tableHeaders = [];
+    let tableRows = [];
+    let foundHistoricalSection = false;
+    let completedHistoricalTable = false;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      
+      // Check if we've found the Historical Substance Use Analysis section
+      if (line.includes('Historical Substance Use Analysis')) {
+        foundHistoricalSection = true;
+      }
+      
+      // Stop parsing after completing the Historical Substance Use Analysis table
+      if (foundHistoricalSection && completedHistoricalTable && 
+          (line.startsWith('###') || line.includes('CODE CANDIDATE ANALYSIS'))) {
+        break;
+      }
+      
+      if (line.startsWith('## ')|| line.startsWith('###') || line.startsWith('#')) {
+        // Flush any pending table
+        if (inTable) {
+          html += renderMRAnalysisTable(tableHeaders, tableRows);
+          inTable = false;
+          tableHeaders = [];
+          tableRows = [];
+        }
+        // Section header
+        const sectionTitle = line.substring(3).trim();
+        html += `<div class="section-name" style="font-size: 14px; font-weight: 700; color: #1f2937; background: #e5e7eb; padding: 8px 12px; margin: 12px 0 5px 0;">${escapeHtml(sectionTitle)}</div>`;
+        
+      } else if (line.startsWith('**') && line.endsWith('**')) {
+        // Flush any pending table
+        if (inTable) {
+          html += renderMRAnalysisTable(tableHeaders, tableRows);
+          inTable = false;
+          tableHeaders = [];
+          tableRows = [];
+        }
+        // Subsection header
+        const subsectionTitle = line.substring(2, line.length - 2).trim();
+        html += `<div class="subsection-name" style="font-size: 14px; font-weight: 600; color: #374151; background: #f3f4f6; padding: 6px 10px; border-left: 3px solid #6b7280; margin: 8px 0 3px 0;">${escapeHtml(subsectionTitle)}</div>`;
+        
+      } else if (line.trim().startsWith('|') && line.trim().endsWith('|')) {
+        // Table row
+        const cells = line.split('|').map(cell => cell.trim()).filter(cell => cell !== '');
+        
+        if (!inTable) {
+          // First row is headers
+          tableHeaders = cells;
+          inTable = true;
+        } else if (line.includes('---') || line.includes('===')) {
+          // Skip separator rows
+          continue;
+        } else {
+          // Data row
+          tableRows.push(cells);
+          
+          // If we're in the Historical Substance Use Analysis section and have data rows, mark as completed
+          if (foundHistoricalSection && tableRows.length > 0) {
+            completedHistoricalTable = true;
+          }
+        }
+        
+      } else if (line.trim().startsWith('- ')) {
+        // Flush any pending table
+        if (inTable) {
+          html += renderMRAnalysisTable(tableHeaders, tableRows);
+          inTable = false;
+          tableHeaders = [];
+          tableRows = [];
+        }
+        // List item
+        const listContent = line.trim().substring(2);
+        const isTitle = listContent.includes('**:');
+        const className = isTitle ? 'list-title' : '';
+        html += `<ul class="content-list" style="margin: 8px 0; padding-left: 16px;"><li class="${className}" style="margin-bottom: 6px; line-height: 1.4; color: #374151; font-size: 13px;">${formatMRAnalysisText(listContent)}</li></ul>`;
+        
+      } else if (line.trim() === '') {
+        // Flush any pending table
+        if (inTable) {
+          html += renderMRAnalysisTable(tableHeaders, tableRows);
+          inTable = false;
+          tableHeaders = [];
+          tableRows = [];
+        }
+        // Empty line
+        html += '<div style="height: 8px;"></div>';
+        
+      } else if (line.trim() !== '' && !inTable) {
+        // Regular text content
+        html += `<div class="text-content" style="line-height: 1.5; color: #374151; margin: 8px 0; font-size: 13px;">${formatMRAnalysisText(line)}</div>`;
+      }
+    }
+
+    // Flush any remaining table
+    if (inTable) {
+      html += renderMRAnalysisTable(tableHeaders, tableRows);
+    }
+
+    if (!html.trim()) {
+      html = `
+        <div style="text-align: center; padding: 40px 20px; color: #6c757d;">
+          <div style="font-size: 24px; margin-bottom: 10px;">🔍</div>
+          <div>No analysis content found</div>
+        </div>
+      `;
+    }
+    
+    return html;
+  }
+
+  // Render MR Analysis table - compact version for floating panel
+  function renderMRAnalysisTable(headers, rows) {
+    if (headers.length === 0 || rows.length === 0) {
+      return '';
+    }
+
+    let html = '<div class="table-container" style="margin: 5px 15px 12px 15px; overflow-x: auto; border-radius: 6px; border: 2px solid #050505ff; box-shadow: 0 2px 6px rgba(59, 130, 246, 0.15);">';
+    html += '<table class="data-table" style="width: 100%; border-collapse: collapse; background: white; font-size: 11px;">';
+    
+    // Headers
+    html += '<thead style="background: #f8f9fa;"><tr>';
+    headers.forEach(header => {
+      html += `<th style="padding: 6px 4px; text-align: center; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; color: #374151; border-bottom: 1px solid #dee2e6; border-right: 1px solid #dee2e6;">${escapeHtml(header)}</th>`;
+    });
+    html += '</tr></thead>';
+
+    // Rows
+    html += '<tbody>';
+    rows.forEach((row, index) => {
+      html += `<tr style="background: white; border-bottom: 2px solid #dee2e6;">`;
+      row.forEach((cell, cellIndex) => {
+        const isCodeColumn = headers[cellIndex] && (
+          headers[cellIndex].toLowerCase().includes('icd') || 
+          headers[cellIndex].toLowerCase().includes('code') ||
+          headers[cellIndex].toLowerCase().includes('hcc')
+        );
+        
+        let cellStyle = 'padding: 4px 3px; font-size: 10px; color: #000000ff; border-right: 2px solid #dee2e6; vertical-align: middle; line-height: 1.3; max-width: 120px; word-wrap: break-word; text-align: center;';
+        
+        if (isCodeColumn) {
+          cellStyle += ' font-family: "Courier New", monospace; font-weight: 600; color: #000000ff;';
+        }
+        
+        html += `<td style="${cellStyle}">${formatMRAnalysisText(cell)}</td>`;
+      });
+      html += '</tr>';
+    });
+    html += '</tbody>';
+
+    html += '</table></div>';
+    return html;
+  }
+
+  // Format text with bold and line breaks for MR Analysis
+  function formatMRAnalysisText(text) {
+    if (!text) return '';
+    
+    // Handle line breaks
+    text = text.replace(/<br\s*\/?>/gi, '<br>');
+    
+    // Handle bold text
+    text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    
+    return escapeHtml(text).replace(/&lt;br&gt;/g, '<br>').replace(/&lt;strong&gt;(.*?)&lt;\/strong&gt;/g, '<strong>$1</strong>');
+  }
+
 
   // 🧩 Detect patient info and trigger automatically (non-blocking)
-  function tryAutoLoad() {
+  async function tryAutoLoad() {
     if (hasLoaded) return;
 
-    // const chartNumber= window.prompt("enter the chart number");
-    // const patientName= window.prompt("enter the patient name");
+    // Try to detect patient/chart info from known selectors on the page.
     const table = document.querySelector(TABLE_SELECTOR);
     const ul = document.querySelector(UL_SELECTOR);
     if (!table || !ul) return;
@@ -2249,6 +2801,162 @@
     currentMemberId = chartNumber;
     currentMemberName = patientName;
     hasLoaded = true;
+
+    // Pre-load data from all APIs asynchronously
+    console.log('🔄 Pre-loading data for member:', chartNumber, patientName);
+    
+    // Ensure UI elements are created before updating them and wait for DOM
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    try {
+      // Call all APIs in parallel to pre-load data
+      const [chartResponse, auditResponse, mrAnalysisResponse] = await Promise.allSettled([
+        fetchChartDetailsFromServiceWorker(chartNumber, patientName),
+        fetchAuditDetailsFromServiceWorker(chartNumber, patientName),
+        fetchMRAnalysisFromServiceWorker(chartNumber, patientName)
+      ]);
+
+      // Process chart details response
+      if (chartResponse.status === 'fulfilled') {
+        console.log('✅ Chart details pre-loaded successfully');
+        const apiData = chartResponse.value;
+        chartApiData = apiData; // Cache the full API response
+        const payload = apiData && apiData.data ? apiData.data : apiData;
+        const apiConditions = payload && payload.medical_conditions ? payload.medical_conditions : [];
+        const mapped = mapApiMedicalConditions(apiConditions);
+        
+        // Replace medicalConditionsData contents with mapped results
+        medicalConditionsData.length = 0;
+        Array.prototype.push.apply(medicalConditionsData, mapped);
+
+        // Update patient name in UI and cache
+        const patientEl = document.getElementById('patientNameDisplay');
+        if (payload && payload.member) {
+          const name = `${payload.member.fname || ''} ${payload.member.lname || ''}`.trim();
+          if (name) {
+            currentMemberName = name;
+            if (patientEl) patientEl.textContent = name;
+          }
+        }
+        
+        // Extract DOS from payload and update UI
+        try {
+          const dosIso = payload && payload.appointment && (payload.appointment.DOS || payload.appointment.dos);
+          if (dosIso) {
+            const dosDate = new Date(dosIso);
+            currentDos = dosDate.toLocaleDateString();
+            // Update DOS in results element
+            const resultsEl = document.getElementById('chartResultsCount');
+            if (resultsEl) resultsEl.textContent = `DOS: ${currentDos}`;
+          }
+        } catch (e) {
+          console.warn('Failed to parse DOS from chart payload', e);
+        }
+        
+        // Update review status header based on API response status
+        const reviewStatusEl = document.getElementById('reviewStatusHeader');
+        console.log('🔍 Debug review status:', {
+          reviewStatusEl: !!reviewStatusEl,
+          apiData: !!apiData,
+          status: apiData?.status,
+          analystData: payload?.analyst,
+          fullApiData: apiData
+        });
+        
+        if (reviewStatusEl && apiData) {
+          const status = apiData.status;
+          const analystData = payload && payload.analyst;
+          
+          let statusText = '';
+          let statusColor = '#666';
+          
+          if (status === 7) {
+            statusText = 'Under Analyst Review';
+            statusColor = '#ff8c00'; // orangish color
+          } else if (status === 12) {
+            if (analystData && analystData.Fname && analystData.Lname) {
+              statusText = `Reviewed by ${analystData.Fname} ${analystData.Lname}`;
+            } else {
+              statusText = 'Reviewed by Analyst';
+            }
+            statusColor = '#007bff'; // blue color
+          } else if (status === 13) {
+            if (analystData && analystData.Fname && analystData.Lname) {
+              statusText = `Reviewed by ${analystData.Fname} ${analystData.Lname}`;
+            } else {
+              statusText = 'Reviewed by Analyst';
+            }
+            statusColor = '#28a745'; // green color
+          }
+          
+          console.log('📝 Setting review status:', { statusText, statusColor, status });
+          reviewStatusEl.textContent = statusText;
+          reviewStatusEl.style.color = statusColor;
+        } else {
+          console.warn('⚠️ Cannot update review status:', {
+            reviewStatusEl: !!reviewStatusEl,
+            apiData: !!apiData
+          });
+        }
+        
+        // Update chart count if on chart view
+        const countEl = document.getElementById('chartCount');
+        if (countEl) countEl.textContent = `[ ${medicalConditionsData.length} ]`;
+        
+      } else {
+        console.warn('⚠️ Chart details pre-load failed:', chartResponse.reason);
+      }
+
+      // Process audit details response
+      if (auditResponse.status === 'fulfilled') {
+        console.log('✅ Audit details pre-loaded successfully');
+        const apiData = auditResponse.value;
+        
+        // Extract member name from audit response (override if available)
+        if (apiData && apiData.member_name) {
+          currentMemberName = apiData.member_name;
+          console.log('📝 Updated member name from audit API:', currentMemberName);
+        }
+        
+        // Extract DOS from audit response (override if available)
+        if (apiData && apiData.dos) {
+          try {
+            const dosDate = new Date(apiData.dos);
+            currentDos = dosDate.toLocaleDateString();
+            console.log('📅 Updated DOS from audit API:', currentDos);
+          } catch (e) {
+            console.warn('Failed to parse DOS from audit payload', e);
+          }
+        }
+        
+        // Normalize payload shapes: apiData may be nested in audit_data.data
+        let auditArray = [];
+        if (apiData && apiData.audit_data && Array.isArray(apiData.audit_data.data)) {
+          auditArray = apiData.audit_data.data;
+        } else if (Array.isArray(apiData)) {
+          auditArray = apiData;
+        }
+
+        const mapped = mapApiAuditRows(auditArray || []);
+        conditionAuditData.length = 0;
+        Array.prototype.push.apply(conditionAuditData, mapped);
+      } else {
+        console.warn('⚠️ Audit details pre-load failed:', auditResponse.reason);
+      }
+
+      // Process MR Analysis response
+      if (mrAnalysisResponse.status === 'fulfilled') {
+        console.log('✅ MR Analysis pre-loaded successfully');
+        mrAnalysisData = mrAnalysisResponse.value;
+      } else {
+        console.warn('⚠️ MR Analysis pre-load failed:', mrAnalysisResponse.reason);
+      }
+
+      console.log('🎉 Data pre-loading completed');
+      
+    } catch (error) {
+      console.error('❌ Error during data pre-loading:', error);
+    }
   }
 
   // Make functions globally available for onclick handlers
@@ -2258,9 +2966,11 @@
   window.renderConditionAuditSortIcon = renderConditionAuditSortIcon;
 
   // 🧠 Observe DOM changes
-  observer = new MutationObserver(() => tryAutoLoad());
+  observer = new MutationObserver(() => {
+    tryAutoLoad().catch(error => console.error('Error in tryAutoLoad:', error));
+  });
   observer.observe(document.body, { childList: true, subtree: true });
 
   // Try once immediately
-  tryAutoLoad();
+  tryAutoLoad().catch(error => console.error('Error in initial tryAutoLoad:', error));
 })();
