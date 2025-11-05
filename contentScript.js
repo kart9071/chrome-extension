@@ -1,8 +1,6 @@
 (() => {
   /* global chrome */
   const FLOATING_DIV_ID = "ct-chart-floating";
-  const TABLE_SELECTOR = "#ctl00_MainContent_ucPatientDetail_dlPatient";
-  const UL_SELECTOR = "#ulReadPatientDetail";
 
   let observer;
   let hasLoaded = false;
@@ -968,13 +966,7 @@
          text-align: left !important;
        }
 
-       /* Add a colon after every label for consistent "label : value" look */
-       .audit-detail-label::after {
-         content: ':' !important;
-         display: inline-block !important;
-         margin-left: 6px !important;
-         color: #64748b !important;
-       }
+
 
        .audit-detail-value {
          color: #1e293b !important;
@@ -1519,7 +1511,7 @@
         try {
           const formatted = new Date(apiData.dos).toLocaleDateString();
           const resultsEl = document.getElementById('chartResultsCount');
-          if (resultsEl) resultsEl.textContent = `DOS: ${formatted}`;
+          if (resultsEl) resultsEl.innerHTML = `<strong>DOS:> ${formatted}</strong>`;
         } catch (e) {
           console.warn('Failed to parse DOS from audit payload', e);
         }
@@ -1705,7 +1697,7 @@
         // Update DOS
         const resultsEl = document.getElementById('chartResultsCount');
         if (resultsEl && currentDos) {
-          resultsEl.textContent = `DOS: ${currentDos}`;
+          resultsEl.innerHTML = `<strong>DOS: ${currentDos}</strong>`;
         }
         
         // Update review status from cached API data
@@ -1783,6 +1775,8 @@
       // Check if audit data is already available for current member (first time opening this view)
       if (conditionAuditData.length > 0) {
         console.log('🔍 Using cached audit data for member:', currentMemberId);
+        // Show the panel UI first so it becomes visible
+        showPanel('conditionAudit');
         showConditionAuditContent();
         // Update patient name display
         const patientEl = document.getElementById('patientNameDisplay');
@@ -1791,7 +1785,7 @@
         // Update DOS display
         const resultsEl = document.getElementById('chartResultsCount');
         if (resultsEl && currentDos) {
-          resultsEl.textContent = `DOS: ${currentDos}`;
+          resultsEl.innerHTML = `<strong>DOS: ${currentDos}</strong>`;
         } else if (resultsEl) {
           resultsEl.textContent = `${conditionAuditData.length} records`;
         }
@@ -1980,7 +1974,7 @@
   // Move the date/metadata to the right-aligned results area.
   // Keep the left subtitle empty; show "Chart reviewed on {date}" on the right instead.
   const resultsEl = document.getElementById('chartResultsCount');
-  if (resultsEl) resultsEl.textContent = currentDos ? `DOS: ${currentDos}` : '';
+  if (resultsEl) resultsEl.innerHTML = currentDos ? `<strong>DOS:${currentDos}</strong>` : '';
   // Clear review status when showing panel
   const reviewStatusEl = document.getElementById('reviewStatusHeader');
   if (reviewStatusEl) reviewStatusEl.textContent = '';
@@ -2071,7 +2065,7 @@
           currentDos = formatted;
           // Put the date on the right-aligned results element instead of the left subtitle
           const resultsElDos = document.getElementById('chartResultsCount');
-          if (resultsElDos) resultsElDos.textContent = `DOS: ${formatted}`;
+          if (resultsElDos) resultsElDos.innerHTML = `<strong>DOS: ${formatted}</strong> }`;
           const sub = document.getElementById('chartSubTitle');
           if (sub) sub.textContent = '';
         } else {
@@ -2317,7 +2311,7 @@
         resultsCount.textContent = 'Loading...';
       } else {
         // Show the review date on the right when not loading (left header bracket remains the canonical count)
-        resultsCount.textContent = currentDos ? `DOS: ${currentDos}` : '';
+        resultsCount.innerHTML = currentDos ? `<strong>DOS: ${currentDos}</strong>` : '';
       }
     }
   }
@@ -2408,19 +2402,32 @@
   // Toggle expand handler
   window.toggleAuditRowExpand = function (rowId) {
     const idStr = String(rowId);
+    console.log('🔄 toggleAuditRowExpand called with:', idStr);
+    
     // Ensure expandedAuditRows exists
     if (!window.expandedAuditRows) {
       window.expandedAuditRows = new Set();
+      console.log('📝 Created new expandedAuditRows Set');
     }
-    if (window.expandedAuditRows.has(idStr)) {
+    
+    const wasExpanded = window.expandedAuditRows.has(idStr);
+    if (wasExpanded) {
       window.expandedAuditRows.delete(idStr);
+      console.log('📉 Collapsed row:', idStr);
     } else {
       window.expandedAuditRows.add(idStr);
+      console.log('📈 Expanded row:', idStr);
     }
+    
+    console.log('🔍 Current expanded rows:', Array.from(window.expandedAuditRows));
     showConditionAuditContent();
   };
 
   function showConditionAuditContent() {
+    console.log('🔍 showConditionAuditContent called, conditionAuditData length:', conditionAuditData.length);
+    const chartContent = document.getElementById('chartContent');
+    console.log('🔍 chartContent element found:', !!chartContent);
+    
     // Filter data first
     let filteredData = filterConditionAuditData();
     // Sort data if needed
@@ -2436,10 +2443,10 @@
       });
     }
 
-    const chartContent = document.getElementById('chartContent');
     const tableRows = sortedData.map((row, i) => {
       const rowId = String(row.id || i);
       const isExpanded = window.expandedAuditRows && window.expandedAuditRows.has(rowId);
+      console.log(`🔍 Row ${rowId}: isExpanded=${isExpanded}, expandedRows=${Array.from(window.expandedAuditRows || [])}`);
       const raw = row.raw || {};
     const documentedCode = row.documented_icd_code || '';
     const hccCode = row.hcc_code || row.hccCode || '';
@@ -2450,7 +2457,7 @@
       return `
         <tr class="${isExpanded ? 'expanded' : ''}">
           <td class="expand-col">
-            <button class="expand-btn ${isExpanded ? 'expanded' : ''}" onclick="window.toggleAuditRowExpand('${rowId}')" aria-label="${isExpanded ? 'Collapse' : 'Expand'} row">
+            <button class="expand-btn ${isExpanded ? 'expanded' : ''}" data-row-id="${rowId}" aria-label="${isExpanded ? 'Collapse' : 'Expand'} row">
               <span class="expand-chevron" style="display:inline-block;transition:transform 0.2s;transform:${isExpanded ? 'rotate(180deg)' : 'rotate(0deg)'}">▼</span>
             </button>
           </td>
@@ -2473,7 +2480,7 @@
     }).join('');
 
     // Render audit table
-    chartContent.innerHTML = `
+    const tableHtml = `
       <div class="audit-table-section">
         <div class="audit-table-container">
           <div class="audit-table-wrapper">
@@ -2503,6 +2510,31 @@
       </div>
     `;
 
+    console.log('🔍 Setting chartContent.innerHTML, tableHtml length:', tableHtml.length);
+    chartContent.innerHTML = tableHtml;
+    console.log('🔍 chartContent.innerHTML set successfully');
+    
+    // Force DOM reflow to ensure rendering
+    const height = chartContent.offsetHeight;
+    console.log('🔍 Forced DOM reflow completed, height:', height);
+    
+    // Debug: Check if expanded rows are actually in the DOM and visible
+    const expandedRows = chartContent.querySelectorAll('.audit-expanded-row');
+    console.log('🔍 Expanded rows in DOM:', expandedRows.length);
+    expandedRows.forEach((row, index) => {
+      const computedStyle = window.getComputedStyle(row);
+      console.log(`🔍 Expanded row ${index} - display: ${computedStyle.display}, visibility: ${computedStyle.visibility}, height: ${computedStyle.height}`);
+    });
+    
+    // Debug: Check if expanded content is in the HTML
+    if (window.expandedAuditRows && window.expandedAuditRows.size > 0) {
+      const expandedRowsInHtml = tableHtml.includes('audit-expanded-row');
+      console.log('🔍 Debug HTML - Expanded rows exist:', window.expandedAuditRows.size, 'HTML contains expanded rows:', expandedRowsInHtml);
+      if (expandedRowsInHtml) {
+        console.log('🔍 Expanded content found in HTML:', tableHtml.match(/audit-expanded-row[\s\S]*?<\/tr>/g));
+      }
+    }
+
     // Update header results count for audit view
     try {
       const resultsEl = document.getElementById('chartResultsCount');
@@ -2521,18 +2553,30 @@
     setTimeout(() => {
       const expandButtons = chartContent.querySelectorAll('.expand-btn');
       expandButtons.forEach((btn) => {
-        const onclickAttr = btn.getAttribute('onclick');
-        if (onclickAttr && onclickAttr.includes('toggleAuditRowExpand')) {
-          // Extract the rowId from the onclick attribute
-          const match = onclickAttr.match(/'([^']+)'/);
-          if (match) {
-            const rowId = match[1];
-            btn.addEventListener('click', function (e) {
-              e.preventDefault();
-              e.stopPropagation();
-              window.toggleAuditRowExpand(rowId);
-            });
-          }
+        const rowId = btn.getAttribute('data-row-id');
+        if (rowId) {
+          btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('🔽 Toggling audit row:', rowId);
+            const wasExpanded = window.expandedAuditRows && window.expandedAuditRows.has(rowId);
+            window.toggleAuditRowExpand(rowId);
+            
+            // After expansion, scroll to make the expanded content visible
+            if (!wasExpanded) {
+              setTimeout(() => {
+                const expandedRow = chartContent.querySelector('.audit-expanded-row');
+                if (expandedRow) {
+                  expandedRow.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'nearest',
+                    inline: 'nearest'
+                  });
+                  console.log('🔽 Scrolled to expanded row');
+                }
+              }, 100);
+            }
+          });
         }
       });
     }, 0);
@@ -2558,7 +2602,7 @@
       // Format the latest_dos to show just the date part
       const latestDos = mrAnalysisData.latest_dos;
       const formattedDos = latestDos ? new Date(latestDos).toLocaleDateString() : 'N/A';
-      resultsEl.textContent = `DOS: ${formattedDos}`;
+      resultsEl.innerHTML = `<strong>DOS: ${formattedDos}</strong>`;
     }
 
     const patientEl = document.getElementById('patientNameDisplay');
@@ -2624,7 +2668,7 @@
         break;
       }
       
-      if (line.startsWith('## ')|| line.startsWith('###') || line.startsWith('#')) {
+      if (line.startsWith('## ')|| line.startsWith('### ') || line.startsWith('# ')) {
         // Flush any pending table
         if (inTable) {
           html += renderMRAnalysisTable(tableHeaders, tableRows);
@@ -2633,9 +2677,20 @@
           tableRows = [];
         }
         // Section header
-        const sectionTitle = line.substring(3).trim();
-        html += `<div class="section-name" style="font-size: 14px; font-weight: 700; color: #1f2937; background: #e5e7eb; padding: 8px 12px; margin: 12px 0 5px 0;">${escapeHtml(sectionTitle)}</div>`;
-        
+        if (line.startsWith('## ')) {
+          const sectionTitle = line.substring(2).trim();
+          html += `<div class="section-name" style="font-size: 1.125rem; --tw-text-opacity: 1; line-height: 1.75rem; color: rgb(30 41 59 / var(--tw-text-opacity, 1)); font-weight: 700; padding-right: 2rem !important; --tw-bg-opacity: 1; padding-left: .75rem !important; background-color: rgb(229 231 235 / var(--tw-bg-opacity, 1)); --tw-border-opacity: 1; border-color: rgb(59 130 246 / var(--tw-border-opacity, 1)) !important; border-left-width: 4px !important;">${escapeHtml(sectionTitle)}</div>`;
+        }
+        if (line.startsWith('# ')) {
+          const sectionTitle = line.substring(1).trim();
+          html += `<div class="section-name" style="font-size: 1.125rem; --tw-text-opacity: 1; line-height: 1.75rem; color: rgb(30 41 59 / var(--tw-text-opacity, 1)); font-weight: 700; padding-right: 2rem !important; --tw-bg-opacity: 1; padding-left: .75rem !important; background-color: rgb(229 231 235 / var(--tw-bg-opacity, 1)); --tw-border-opacity: 1; border-color: rgb(59 130 246 / var(--tw-border-opacity, 1)) !important; border-left-width: 4px !important;">${escapeHtml(sectionTitle)}</div>`;
+
+        }
+        if (line.startsWith('### ')) {
+          const sectionTitle = line.substring(3).trim();
+          html += `<div class="section-name" style="font-size: 1.125rem; --tw-text-opacity: 1; line-height: 1.75rem; color: rgb(30 41 59 / var(--tw-text-opacity, 1)); font-weight: 700; padding-right: 2rem !important; --tw-bg-opacity: 1; padding-left: .75rem !important; background-color: rgb(229 231 235 / var(--tw-bg-opacity, 1)); --tw-border-opacity: 1; border-color: rgb(59 130 246 / var(--tw-border-opacity, 1)) !important; border-left-width: 4px !important;">${escapeHtml(sectionTitle)}</div>`;
+
+        }
       } else if (line.startsWith('**') && line.endsWith('**')) {
         // Flush any pending table
         if (inTable) {
@@ -2723,13 +2778,13 @@
       return '';
     }
 
-    let html = '<div class="table-container" style="margin: 5px 15px 12px 15px; overflow-x: auto; border-radius: 6px; border: 2px solid #050505ff; box-shadow: 0 2px 6px rgba(59, 130, 246, 0.15);">';
-    html += '<table class="data-table" style="width: 100%; border-collapse: collapse; background: white; font-size: 11px;">';
+    let html = '<div class="table-container" style="padding-top: .5rem !important;overflow: auto !important; border-color: hsl(var(--border)); border-radius: 6px; border: 0 solid #e5e7eb; box-sizing: border-box;">';
+    html += '<table class="data-table" style="width: 100%; font-size: 11px;">';
     
     // Headers
     html += '<thead style="background: #f8f9fa;"><tr>';
     headers.forEach(header => {
-      html += `<th style="padding: 6px 4px; text-align: center; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; color: #374151; border-bottom: 1px solid #dee2e6; border-right: 1px solid #dee2e6;">${escapeHtml(header)}</th>`;
+      html += `<th style="padding: .625rem !important; !important; font-size: .75rem; font-weight: 600; text-transform: uppercase; color: rgb(51 65 85 / var(--tw-text-opacity, 1)); letter-spacing: .05em !important; text-transform: uppercase !important; background-color: rgb(248 250 252 / var(--tw-bg-opacity, 1)); border-color: rgb(226 232 240 / var(--tw-border-opacity, 1)); --tw-text-opacity: 1 !important;">${escapeHtml(header)}</th>`;
     });
     html += '</tr></thead>';
 
@@ -2744,7 +2799,7 @@
           headers[cellIndex].toLowerCase().includes('hcc')
         );
         
-        let cellStyle = 'padding: 4px 3px; font-size: 10px; color: #000000ff; border-right: 2px solid #dee2e6; vertical-align: middle; line-height: 1.3; max-width: 120px; word-wrap: break-word; text-align: center;';
+        let cellStyle = 'padding: .5rem !important; --tw-border-opacity: 1 !important; border-color: rgb(226 232 240 / var(--tw-border-opacity, 1)); line-height: 1rem !important; font-size: .75rem !important; color: rgb(30 41 59 / var(--tw-text-opacity, 1)); vertical-align: top !important; border-right-width: 1px !important; border: 0 solid #e5e7eb;box-sizing: border-box;';
         
         if (isCodeColumn) {
           cellStyle += ' font-family: "Courier New", monospace; font-weight: 600; color: #000000ff;';
@@ -2785,7 +2840,6 @@
 
     const chartNumber = document.querySelector("#chartNumber")?.textContent?.trim();
     const patientName = document.querySelector("#patientName")?.textContent?.trim();
-
     if (!chartNumber || !patientName) {
       // Nothing to auto-load yet; wait for DOM mutations
       return;
@@ -2847,7 +2901,7 @@
             currentDos = dosDate.toLocaleDateString();
             // Update DOS in results element
             const resultsEl = document.getElementById('chartResultsCount');
-            if (resultsEl) resultsEl.textContent = `DOS: ${currentDos}`;
+            if (resultsEl) resultsEl.innerHTML = `<strong>DOS: ${currentDos}</strong>`;
           }
         } catch (e) {
           console.warn('Failed to parse DOS from chart payload', e);
