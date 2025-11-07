@@ -1415,6 +1415,37 @@
     });
   }
 
+  // Helper: detect API 'not found' / 404 style errors
+  function isNotFoundError(err) {
+    if (!err || !err.message) return false;
+    const m = err.message.toString().toLowerCase();
+    return m.includes('404') || m.includes('not found') || m.includes('no data') || m.includes('not present');
+  }
+
+  // Helper: show a unified "not present" UI for a given API area
+  function showApiNotPresentMessage(area) {
+    const chartContent = document.getElementById('chartContent');
+    const resultsEl = document.getElementById('chartResultsCount');
+    const patientEl = document.getElementById('patientNameDisplay');
+    const titleMap = {
+      chart: 'Chart Details',
+      conditionAudit: 'Audit Details',
+      mrAnalysis: 'MR Analysis'
+    };
+    const title = titleMap[area] || 'Data';
+    if (chartContent) {
+      chartContent.innerHTML = `
+        <div style="text-align: center; padding: 40px 20px; color: #6c757d;">
+          <div style="font-size: 28px; margin-bottom: 10px;">ℹ️</div>
+          <div style="font-size:16px;font-weight:600;">The ${escapeHtml(title)} for this member is not present.</div>
+          <div style="margin-top:8px;font-size:13px;color:#9ca3af;">If you believe this is an error, try refreshing or contact support.</div>
+        </div>
+      `;
+    }
+    if (resultsEl) resultsEl.textContent = '';
+    if (patientEl) patientEl.textContent = currentMemberName || 'N/A';
+  }
+
   // Fetch audit details from the extension service worker
   function fetchAuditDetailsFromServiceWorker(memberId, memberName) {
     return new Promise((resolve, reject) => {
@@ -1524,7 +1555,12 @@
         try { showConditionAuditContent(); } catch (e) { console.error(e); }
       }
     } else {
-      console.warn('No audit rows returned from API; keeping existing audit data.');
+      console.warn('No audit rows returned from API; clearing audit data and showing not-present message.');
+      conditionAuditData = [];
+      // If the audit panel is currently visible, show a helpful 'not present' UI
+      if (contentType === 'conditionAudit') {
+        showApiNotPresentMessage('conditionAudit');
+      }
     }
   }
 
@@ -1745,7 +1781,11 @@
         await showChartDetails(currentMemberId, currentMemberName);
       } catch (err) {
         console.error('Failed to fetch chart details:', err);
-        if (chartContent) chartContent.innerHTML = `<div style="padding:20px;color:#c00">Failed to load chart details: ${err.message}</div>`;
+        if (isNotFoundError(err)) {
+          showApiNotPresentMessage('chart');
+        } else {
+          if (chartContent) chartContent.innerHTML = `<div style="padding:20px;color:#c00">Failed to load chart details: ${err.message}</div>`;
+        }
       }
     });
     // When user clicks Audit, show panel and fetch audit details via service worker
@@ -1769,7 +1809,11 @@
           await fetchAuditDetails(currentMemberId || '89700511', currentMemberName || 'John Doe');
         } catch (err) {
           console.error('Failed to refresh audit details:', err);
-          if (chartContent) chartContent.innerHTML = `<div style="padding:20px;color:#c00">Failed to refresh audit details: ${err.message}</div>`;
+          if (isNotFoundError(err)) {
+            showApiNotPresentMessage('conditionAudit');
+          } else {
+            if (chartContent) chartContent.innerHTML = `<div style="padding:20px;color:#c00">Failed to refresh audit details: ${err.message}</div>`;
+          }
         }
         return;
       }
@@ -1805,7 +1849,11 @@
         await fetchAuditDetails(currentMemberId || '89700511', currentMemberName || 'John Doe');
       } catch (err) {
         console.error('Failed to fetch audit details:', err);
-        if (chartContent) chartContent.innerHTML = `<div style="padding:20px;color:#c00">Failed to load audit details: ${err.message}</div>`;
+        if (isNotFoundError(err)) {
+          showApiNotPresentMessage('conditionAudit');
+        } else {
+          if (chartContent) chartContent.innerHTML = `<div style="padding:20px;color:#c00">Failed to load audit details: ${err.message}</div>`;
+        }
       }
     });
 
@@ -1834,7 +1882,11 @@
         } catch (err) {
           console.error('Failed to refresh MR analysis:', err);
           isMRAnalysisLoading = false;
-          if (chartContent) chartContent.innerHTML = `<div style="padding:20px;color:#c00">Failed to refresh MR analysis: ${err.message}</div>`;
+          if (isNotFoundError(err)) {
+            showApiNotPresentMessage('mrAnalysis');
+          } else {
+            if (chartContent) chartContent.innerHTML = `<div style="padding:20px;color:#c00">Failed to refresh MR analysis: ${err.message}</div>`;
+          }
         }
         return;
       }
@@ -1863,7 +1915,11 @@
       } catch (err) {
         console.error('Failed to fetch MR analysis:', err);
         isMRAnalysisLoading = false;
-        if (chartContent) chartContent.innerHTML = `<div style="padding:20px;color:#c00">Failed to load MR analysis: ${err.message}</div>`;
+        if (isNotFoundError(err)) {
+          showApiNotPresentMessage('mrAnalysis');
+        } else {
+          if (chartContent) chartContent.innerHTML = `<div style="padding:20px;color:#c00">Failed to load MR analysis: ${err.message}</div>`;
+        }
       }
     });
 
@@ -2118,8 +2174,12 @@
     } catch (err) {
       console.error('Failed to fetch chart details:', err);
       isChartLoading = false;
-      if (chartContent) {
-        chartContent.innerHTML = `<div style="padding:20px;color:#c00">Failed to load chart details: ${err.message}</div>`;
+      if (isNotFoundError(err)) {
+        showApiNotPresentMessage('chart');
+      } else {
+        if (chartContent) {
+          chartContent.innerHTML = `<div style="padding:20px;color:#c00">Failed to load chart details: ${err.message}</div>`;
+        }
       }
       // clear review status on error
       const reviewStatusEl = document.getElementById('reviewStatusHeader');
@@ -2836,12 +2896,22 @@
     if (hasLoaded) return;
 
     // Try to detect patient/chart info from known selectors on the page.
+    // If not available, don't prompt the user (non-blocking).
+    // const chartNumberEl = document.querySelector('#chartNumber') || document.querySelector('[data-chart-number]');
+    // const patientNameEl = document.querySelector('#patientName') || document.querySelector('.patient-name');
+
+    // const chartNumber = chartNumberEl ? (chartNumberEl.textContent || chartNumberEl.getAttribute('data-chart-number') || '').trim() : '';
+    // const patientName = patientNameEl ? (patientNameEl.textContent || '').trim() : '';
+    // const chartNumber= window.prompt("enter the chart number");
+    // const patientName= window.prompt("enter the patient name");
     const table = document.querySelector(TABLE_SELECTOR);
     const ul = document.querySelector(UL_SELECTOR);
     if (!table || !ul) return;
 
     const chartNumber = document.querySelector("#chartNumber")?.textContent?.trim();
     const patientName = document.querySelector("#patientName")?.textContent?.trim();
+
+    
     if (!chartNumber || !patientName) {
       // Nothing to auto-load yet; wait for DOM mutations
       return;
